@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Polly-based resilience behaviors (Retry/Timeout/CircuitBreaker) for ConduitR.</Description>
+    <IsPackable>true</IsPackable>
+    <AssemblyName>ConduitR.Resilience.Polly</AssemblyName>
+    <RootNamespace>ConduitR.Resilience.Polly</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ConduitR.Abstractions\ConduitR.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Polly" Version="7.2.3" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+</Project>

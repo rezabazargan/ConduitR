@@ -82,6 +82,9 @@ jobs:
           if [ -f src/ConduitR.AspNetCore/ConduitR.AspNetCore.csproj ]; then
             dotnet pack src/ConduitR.AspNetCore/ConduitR.AspNetCore.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
           fi
+          if [ -f src/ConduitR.Resilience.Polly/ConduitR.Resilience.Polly.csproj ]; then
+            dotnet pack src/ConduitR.Resilience.Polly/ConduitR.Resilience.Polly.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          fi
 
       - name: Publish to NuGet
         if: env.IS_TAG == 'true' || env.IS_MAIN == 'true'
