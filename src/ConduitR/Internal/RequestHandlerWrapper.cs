@@ -2,34 +2,39 @@ using ConduitR.Abstractions;
 
 namespace ConduitR.Internal;
 
-/// <summary>Internal wrapper that resolves handlers & behaviors and executes the pipeline.</summary>
 internal sealed class RequestHandlerWrapper<TRequest, TResponse> : IRequestHandlerWrapper<TResponse>
     where TRequest : IRequest<TResponse>
 {
     public ValueTask<TResponse> Handle(IRequest<TResponse> request, CancellationToken ct, Func<Type, IEnumerable<object>> getInstances)
     {
-        var handlers = getInstances(typeof(IRequestHandler<TRequest, TResponse>))
-            .Cast<IRequestHandler<TRequest, TResponse>>()
-            .ToArray();
-
-        if (handlers.Length == 0)
+        // Resolve single handler without LINQ/arrays
+        IRequestHandler<TRequest, TResponse>? handler = null;
+        foreach (var obj in getInstances(typeof(IRequestHandler<TRequest, TResponse>)))
+        {
+            if (obj is IRequestHandler<TRequest, TResponse> h)
+            {
+                if (handler is not null)
+                    throw new InvalidOperationException($"Multiple handlers registered for {typeof(TRequest).FullName}");
+                handler = h;
+            }
+        }
+        if (handler is null)
             throw new InvalidOperationException($"No handler registered for {typeof(TRequest).FullName}");
 
-        if (handlers.Length > 1)
-            throw new InvalidOperationException($"Multiple handlers ({handlers.Length}) registered for {typeof(TRequest).FullName}. Ensure a single handler or distinct request types.");
-
-        var handler = handlers[0];
-
-        var behaviors = getInstances(typeof(IPipelineBehavior<TRequest, TResponse>))
-            .Cast<IPipelineBehavior<TRequest, TResponse>>()
-            .ToArray();
+        // Gather behaviors without ToArray
+        List<IPipelineBehavior<TRequest, TResponse>> behaviors = new(capacity: 4);
+        foreach (var obj in getInstances(typeof(IPipelineBehavior<TRequest, TResponse>)))
+        {
+            if (obj is IPipelineBehavior<TRequest, TResponse> b)
+                behaviors.Add(b);
+        }
 
         var typedRequest = (TRequest)request;
 
         RequestHandlerDelegate<TResponse> next = () => handler.Handle(typedRequest, ct);
 
-        // Compose behaviors in reverse registration order (last-added runs first)
-        for (int i = behaviors.Length - 1; i >= 0; i--)
+        // Compose in reverse
+        for (int i = behaviors.Count - 1; i >= 0; i--)
         {
             var current = behaviors[i];
             var nextCopy = next;

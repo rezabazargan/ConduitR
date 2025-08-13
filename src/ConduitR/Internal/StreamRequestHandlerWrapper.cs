@@ -8,26 +8,31 @@ internal sealed class StreamRequestHandlerWrapper<TRequest, TResponse> : IStream
 {
     public IAsyncEnumerable<TResponse> Handle(IStreamRequest<TResponse> request, CancellationToken ct, Func<Type, IEnumerable<object>> getInstances)
     {
-        var handlers = getInstances(typeof(IStreamRequestHandler<TRequest, TResponse>))
-            .Cast<IStreamRequestHandler<TRequest, TResponse>>()
-            .ToArray();
-
-        if (handlers.Length == 0)
+        IStreamRequestHandler<TRequest, TResponse>? handler = null;
+        foreach (var obj in getInstances(typeof(IStreamRequestHandler<TRequest, TResponse>)))
+        {
+            if (obj is IStreamRequestHandler<TRequest, TResponse> h)
+            {
+                if (handler is not null)
+                    throw new InvalidOperationException($"Multiple stream handlers registered for {typeof(TRequest).FullName}");
+                handler = h;
+            }
+        }
+        if (handler is null)
             throw new InvalidOperationException($"No stream handler registered for {typeof(TRequest).FullName}");
-        if (handlers.Length > 1)
-            throw new InvalidOperationException($"Multiple stream handlers ({handlers.Length}) registered for {typeof(TRequest).FullName}. Ensure a single handler.");
 
-        var handler = handlers[0];
-
-        var behaviors = getInstances(typeof(IStreamPipelineBehavior<TRequest, TResponse>))
-            .Cast<IStreamPipelineBehavior<TRequest, TResponse>>()
-            .ToArray();
+        List<IStreamPipelineBehavior<TRequest, TResponse>> behaviors = new(capacity: 4);
+        foreach (var obj in getInstances(typeof(IStreamPipelineBehavior<TRequest, TResponse>)))
+        {
+            if (obj is IStreamPipelineBehavior<TRequest, TResponse> b)
+                behaviors.Add(b);
+        }
 
         var typedRequest = (TRequest)request;
 
         StreamHandlerDelegate<TResponse> next = () => handler.Handle(typedRequest, ct);
 
-        for (int i = behaviors.Length - 1; i >= 0; i--)
+        for (int i = behaviors.Count - 1; i >= 0; i--)
         {
             var current = behaviors[i];
             var nextCopy = next;
