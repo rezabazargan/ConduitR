@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using ConduitR.Abstractions;
 
@@ -33,12 +34,45 @@ public sealed class Mediator : IMediator
 
         if (handlers.Length == 0) return;
 
+        using var activity = ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Publish", ActivityKind.Internal);
+        activity?.SetTag("conduitr.notification_type", typeof(TNotification).FullName);
+        activity?.SetTag("conduitr.handlers.count", handlers.Length);
+
         var tasks = new List<Task>(handlers.Length);
         foreach (var handler in handlers)
         {
-            tasks.Add(handler.Handle(notification, cancellationToken));
+            var handlerType = handler.GetType();
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            tasks.Add(InvokeHandler(handler, notification, cancellationToken, activity, handlerType, sw));
         }
         await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
+
+    private static async Task InvokeHandler<TNotification>(INotificationHandler<TNotification> handler, TNotification notification, CancellationToken ct, Activity? parent, Type handlerType, System.Diagnostics.Stopwatch sw) where TNotification : INotification
+    {
+        try
+        {
+            await handler.Handle(notification, ct).ConfigureAwait(false);
+            sw.Stop();
+            parent?.AddEvent(new ActivityEvent("handler.completed", tags: new ActivityTagsCollection
+            {
+                { "conduitr.handler", handlerType.FullName ?? handlerType.Name },
+                { "conduitr.elapsed_ms", sw.Elapsed.TotalMilliseconds }
+            }));
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            parent?.AddEvent(new ActivityEvent("handler.exception", tags: new ActivityTagsCollection
+            {
+                { "exception.type", ex.GetType().FullName },
+                { "exception.message", ex.Message },
+                { "conduitr.handler", handlerType.FullName ?? handlerType.Name },
+                { "conduitr.elapsed_ms", sw.Elapsed.TotalMilliseconds }
+            }));
+            parent?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
     }
 
     private interface IRequestHandlerWrapper<TResponse>
@@ -49,11 +83,19 @@ public sealed class Mediator : IMediator
     private sealed class RequestHandlerWrapper<TRequest, TResponse> : IRequestHandlerWrapper<TResponse>
         where TRequest : IRequest<TResponse>
     {
-        public ValueTask<TResponse> Handle(IRequest<TResponse> request, CancellationToken ct, GetInstances getInstances)
+        public async ValueTask<TResponse> Handle(IRequest<TResponse> request, CancellationToken ct, GetInstances getInstances)
         {
-            var handler = getInstances(typeof(IRequestHandler<TRequest, TResponse>))
+            var handlers = getInstances(typeof(IRequestHandler<TRequest, TResponse>))
                 .Cast<IRequestHandler<TRequest, TResponse>>()
-                .SingleOrDefault() ?? throw new InvalidOperationException($"No handler registered for {typeof(TRequest).FullName}");
+                .ToArray();
+
+            if (handlers.Length == 0)
+                throw new InvalidOperationException($"No handler registered for {typeof(TRequest).FullName}");
+
+            if (handlers.Length > 1)
+                throw new InvalidOperationException($"Multiple handlers ({handlers.Length}) registered for {typeof(TRequest).FullName}. Ensure a single handler or use distinct request types.");
+
+            var handler = handlers[0];
 
             var behaviors = getInstances(typeof(IPipelineBehavior<TRequest, TResponse>))
                 .Cast<IPipelineBehavior<TRequest, TResponse>>()
@@ -71,7 +113,31 @@ public sealed class Mediator : IMediator
                 next = () => current.Handle(typedRequest, ct, nextCopy);
             }
 
-            return next();
+            using var activity = ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Send", ActivityKind.Internal);
+            activity?.SetTag("conduitr.request_type", typeof(TRequest).FullName);
+            activity?.SetTag("conduitr.response_type", typeof(TResponse).FullName);
+            activity?.SetTag("conduitr.behaviors.count", behaviors.Length);
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var result = await next().ConfigureAwait(false);
+                sw.Stop();
+                activity?.SetTag("conduitr.elapsed_ms", sw.Elapsed.TotalMilliseconds);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                activity?.SetTag("conduitr.elapsed_ms", sw.Elapsed.TotalMilliseconds);
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity?.AddEvent(new ActivityEvent("exception", tags: new ActivityTagsCollection
+                {
+                    { "exception.type", ex.GetType().FullName },
+                    { "exception.message", ex.Message }
+                }));
+                throw;
+            }
         }
     }
 }
