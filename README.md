@@ -289,17 +289,6 @@ This project is licensed under the **MIT License** — see `LICENSE`.
 
 Inspired by the excellent ideas behind **CQRS** and existing mediator libraries.
 
----
-
-## Rename Checklist
-
-* [ ] Replace all `ConduitR`, `Conduit`, `{ORG}`, `conduitr`, `ConduitR`, `{SECURITY_CONTACT_EMAIL}` placeholders.
-* [ ] Update `Directory.Build.props` with company and package metadata.
-* [ ] Pick a license (MIT recommended) and update `LICENSE`.
-* [ ] If you don’t need optional packages (AspNetCore, SourceGenerators), delete their projects and references.
-* [ ] Update badges in this README with your GitHub org/repo and NuGet ID.
-
----
 
 ## FAQ (short)
 
