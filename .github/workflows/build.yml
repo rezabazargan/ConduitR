@@ -15,24 +15,33 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '8.0.x'   # builds net8 projects; keep or bump if you switch TFMs
+
+      # Create a solution and add all projects (no fragile globs)
+      - name: Create solution
+        shell: bash
+        run: |
+          dotnet new sln -n ConduitR
+          # add all csproj under src/, samples/, tests/
+          mapfile -t PROJS < <(find src samples tests -type f -name "*.csproj" | sort)
+          dotnet sln ConduitR.sln add "${PROJS[@]}"
 
       - name: Restore
-        run: dotnet restore **/*.csproj
+        run: dotnet restore ConduitR.sln
 
       - name: Build
-        run: dotnet build --configuration Release **/*.csproj --no-restore
+        run: dotnet build -c Release ConduitR.sln --no-restore
 
       - name: Test
-        run: dotnet test --configuration Release **/*Tests/*.csproj --no-build --verbosity normal
+        run: dotnet test -c Release ConduitR.sln --no-build --verbosity normal
 
-      # ---------- Pre-release on main ----------
+      # ---------- Pre-release on pushes to main ----------
       - name: Compute prerelease version
         if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
-          BASE="0.1.0"                   # << bump this when you want next minor
-          DATE=$(date -u +%Y%m%dT%H%M)   # UTC timestamp
+          BASE="0.1.0"                   # bump this when starting a new pre-release train
+          DATE=$(date -u +%Y%m%dT%H%M)
           SHA=$(git rev-parse --short "$GITHUB_SHA")
           echo "PKG_VER=${BASE}-pre.${DATE}.${SHA}" >> $GITHUB_ENV
           echo "PKG_VER=$PKG_VER"
