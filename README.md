@@ -1,302 +1,249 @@
+
 # ConduitR
 
-> A lean, high‑performance mediator-style messaging library for .NET — request/response, commands, queries, notifications, and pipeline behaviors — designed as a modern, open alternative to MediatR.
+Lightweight, fast, and familiar mediator for .NET — designed to feel natural for MediatR users, with a focus on performance, simplicity, and great DX.
 
-[![Build](https://img.shields.io/github/actions/workflow/status/rezabazargan/conduitr/build.yml?branch=main)](../../actions)
+[![Build](https://github.com/rezabazargan/ConduitR/actions/workflows/build.yml/badge.svg)](https://github.com/rezabazargan/ConduitR/actions)
 [![NuGet](https://img.shields.io/nuget/v/ConduitR.svg)](https://www.nuget.org/packages/ConduitR)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/ConduitR.svg)](https://www.nuget.org/packages/ConduitR)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
----
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Why ConduitR?
 
-* **Drop‑in familiar**: Request/Response and Publish/Subscribe abstractions you already know.
-* **Pipeline behaviors**: Cross‑cutting concerns (logging, validation, caching, retries) via simple middleware.
-* **DI‑friendly**: First‑class support for `Microsoft.Extensions.DependencyInjection` (works with others too).
-* **Fast & allocation‑aware**: Minimal overhead, value‑task first, pooling where appropriate.
-* **Agnostic & composable**: No framework lock‑in. Use in Console, Web, Worker, Functions.
-* **Docs & samples**: Clear getting‑started, API docs (DocFX), and real‑world examples.
-
-> ✳️ This repository is scaffolded to be **adoptable for any .NET library**, not just a mediator. Swap the sample code and keep the structure.
-
----
-
-## Table of Contents
-
-* [Packages](#packages)
-* [Quick Start](#quick-start)
-* [Samples](#samples)
-* [Project Layout](#project-layout)
-* [Design Goals](#design-goals)
-* [Documentation](#documentation)
-* [Development](#development)
-* [Contributing](#contributing)
-* [Versioning & Releases](#versioning--releases)
-* [Security](#security)
-* [License](#license)
-* [Acknowledgements](#acknowledgements)
-
----
+- **Familiar**: same mental model as MediatR (`IRequest<T>`, `IRequestHandler`, notifications, behaviors).
+- **Fast**: hot path optimized (cached pipelines per request type, low allocations, ValueTask).
+- **Modular**: add-on packages for Validation, AspNetCore helpers, Processing, and Resilience (Polly).
+- **Observable**: built-in `ActivitySource` for OpenTelemetry (`Send`, `Publish`, `Stream`).
 
 ## Packages
 
-This repo can produce multiple NuGet packages. Replace or remove what you don’t need.
+| Package | What it adds |
+|---|---|
+| `ConduitR` | Core mediator + telemetry |
+| `ConduitR.Abstractions` | Public contracts (requests, handlers, behaviors, etc.) |
+| `ConduitR.DependencyInjection` | `AddConduit(...)` + assembly scanning |
+| `ConduitR.Validation.FluentValidation` | Validation behavior + DI helpers (optional) |
+| `ConduitR.AspNetCore` | ProblemDetails middleware + Minimal API helpers (optional) |
+| `ConduitR.Processing` | Pre/Post processors as behaviors (optional) |
+| `ConduitR.Resilience.Polly` | Retry / Timeout / CircuitBreaker behaviors (optional) |
 
-* `ConduitR.Abstractions` — Interfaces & contracts (requests, handlers, behaviors).
-* `ConduitR` — Core implementation.
-* `ConduitR.DependencyInjection` — Extensions for `IServiceCollection`.
-* `ConduitR.AspNetCore` *(optional)* — Helpers for ASP.NET Core (model binding, filters).
-* `ConduitR.SourceGenerators` *(optional)* — Performance‑oriented generators.
+## Install
 
-> NuGet IDs are set via `Directory.Build.props`. Change once, propagate everywhere.
-
----
-
-## Quick Start
-
-### 1) Install (pick what you need)
-
-```powershell
-dotnet add package ConduitR.Abstractions
+```bash
 dotnet add package ConduitR
+dotnet add package ConduitR.Abstractions
 dotnet add package ConduitR.DependencyInjection
-```
 
-### 2) Define a Request & Handler
+# Optional add-ons
+dotnet add package ConduitR.Validation.FluentValidation
+dotnet add package ConduitR.AspNetCore
+dotnet add package ConduitR.Processing
+dotnet add package ConduitR.Resilience.Polly
+````
 
-```csharp
-// in YourProject/Application/GetTime.cs
-using System.Threading;
-using System.Threading.Tasks;
-using ConduitR.Abstractions;
-
-public sealed record GetTimeQuery(string TimeZoneId) : IRequest<string>;
-
-public sealed class GetTimeHandler : IRequestHandler<GetTimeQuery, string>
-{
-    public ValueTask<string> Handle(GetTimeQuery request, CancellationToken ct)
-    {
-        var tz = TimeZoneInfo.FindSystemTimeZoneById(request.TimeZoneId);
-        var now = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz);
-        return ValueTask.FromResult(now.ToString("O"));
-    }
-}
-```
-
-### 3) Register & Use
+## Quick start
 
 ```csharp
 // Program.cs
+using System.Reflection;
+using ConduitR;
+using ConduitR.Abstractions;
 using ConduitR.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddConduit(cfg =>
 {
-    cfg.AddHandlersFromAssemblies(typeof(GetTimeHandler).Assembly);
-    cfg.AddBehavior(typeof(LoggingBehavior<,>)); // example behavior
+    cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
+    cfg.PublishStrategy = PublishStrategy.Parallel; // Parallel (default), Sequential, StopOnFirstException
 });
 
 var app = builder.Build();
-
-app.MapGet("/time/{tz}", async (string tz, IMediator mediator, CancellationToken ct)
-    => await mediator.Send(new GetTimeQuery(tz), ct));
-
 app.Run();
+
+// A request + handler
+public sealed record Ping(string Name) : IRequest<string>;
+
+public sealed class PingHandler : IRequestHandler<Ping, string>
+{
+    public ValueTask<string> Handle(Ping request, CancellationToken ct)
+        => ValueTask.FromResult($"Hello, {request.Name}!");
+}
 ```
 
-### Notifications (Pub/Sub)
+Use the mediator anywhere (DI):
 
 ```csharp
-public sealed record UserRegistered(Guid Id, string Email) : INotification;
+var result = await mediator.Send(new Ping("ConduitR"));
+```
 
-public sealed class SendWelcomeEmail : INotificationHandler<UserRegistered>
+## Notifications (Publish)
+
+```csharp
+public sealed record UserRegistered(string Email) : INotification;
+
+public sealed class SendWelcomeEmail : INotificationHandler<UserRegistered> { /* ... */ }
+public sealed class AuditLog : INotificationHandler<UserRegistered> { /* ... */ }
+
+// Strategy via AddConduit(...):
+// Parallel (default), Sequential (aggregate errors), StopOnFirstException (short-circuit)
+await mediator.Publish(new UserRegistered("x@y.com"));
+```
+
+## Streaming
+
+```csharp
+public sealed record Ticks(int Count) : IStreamRequest<string>;
+
+public sealed class TicksHandler : IStreamRequestHandler<Ticks, string>
 {
-    public Task Handle(UserRegistered notification, CancellationToken ct)
+    public async IAsyncEnumerable<string> Handle(Ticks req, [EnumeratorCancellation] CancellationToken ct)
     {
-        // send email
-        return Task.CompletedTask;
+        for (var i = 1; i <= req.Count; i++) { ct.ThrowIfCancellationRequested(); await Task.Delay(100, ct); yield return $"tick-{i}"; }
     }
 }
 
-// somewhere in your app
-await mediator.Publish(new UserRegistered(user.Id, user.Email), ct);
+// Consume
+await foreach (var s in mediator.CreateStream(new Ticks(3))) Console.WriteLine(s);
 ```
 
----
+## Validation (FluentValidation)
+
+```csharp
+using ConduitR.Validation.FluentValidation;
+
+builder.Services.AddConduitValidation(typeof(Program).Assembly);
+
+public sealed record CreateOrder(string? Sku, int Qty) : IRequest<string>;
+public sealed class CreateOrderValidator : AbstractValidator<CreateOrder>
+{
+    public CreateOrderValidator() { RuleFor(x => x.Sku).NotEmpty(); RuleFor(x => x.Qty).GreaterThan(0); }
+}
+```
+
+## AspNetCore helpers
+
+```csharp
+using ConduitR.AspNetCore;
+
+// ProblemDetails (400s for validation, 5xx handled)
+builder.Services.AddConduitProblemDetails();
+
+var app = builder.Build();
+app.UseConduitProblemDetails();
+
+// Minimal API mapper
+app.MapMediatorPost<CreateOrder, string>("/orders");
+```
+
+## Pre/Post processors
+
+```csharp
+using ConduitR.Processing;
+
+builder.Services.AddConduitProcessing(typeof(Program).Assembly);
+
+public sealed class AuditPre : IRequestPreProcessor<CreateOrder>
+{
+    public Task Process(CreateOrder req, CancellationToken ct) { /* audit */ return Task.CompletedTask; }
+}
+
+public sealed class MetricsPost : IRequestPostProcessor<CreateOrder, string>
+{
+    public Task Process(CreateOrder req, string res, CancellationToken ct) { /* metrics */ return Task.CompletedTask; }
+}
+```
+
+## Resilience (Polly)
+
+```csharp
+using ConduitR.Resilience.Polly;
+
+builder.Services.AddConduitResiliencePolly(o =>
+{
+    o.RetryCount = 3;                    // exponential backoff
+    o.Timeout = TimeSpan.FromSeconds(1); // per-attempt timeout (pessimistic)
+    o.CircuitBreakerEnabled = true;
+    o.CircuitBreakerFailures = 5;
+    o.CircuitBreakerDuration = TimeSpan.FromSeconds(30);
+});
+```
+
+## Telemetry (OpenTelemetry)
+
+```csharp
+using ConduitR;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService("YourApp"))
+    .WithTracing(b => b
+        .AddSource(ConduitRTelemetry.ActivitySourceName) // "ConduitR"
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter());
+```
+
+Spans: `Mediator.Send`, `Mediator.Publish`, `Mediator.Stream` (+ tags & exception events).
+
+## Performance
+
+* Cached Send/Stream pipelines per `(TRequest,TResponse)` (no per-call reflection/delegate build).
+* Lean publish path, minimal allocations.
+* `ValueTask` in core, one-type-per-file organization.
+
+See `docs/perf-pipeline-cache.md` for details.
+
+## Migrate from MediatR
+
+| MediatR                                    | ConduitR                                 |
+| ------------------------------------------ | ---------------------------------------- |
+| `IMediator.Send`, `.Publish`               | same                                     |
+| `IRequest<TResponse>`                      | same                                     |
+| `IRequestHandler<TReq,TRes>`               | same                                     |
+| `INotification`, `INotificationHandler<T>` | same                                     |
+| Pipeline behaviors                         | same (`IPipelineBehavior<TReq,TRes>`)    |
+| Pre/Post processors                        | via **ConduitR.Processing** (behaviors)  |
+| Validation (FluentValidation)              | **ConduitR.Validation.FluentValidation** |
+| ASP.NET Core helpers                       | **ConduitR.AspNetCore**                  |
+| Resilience                                 | **ConduitR.Resilience.Polly**            |
 
 ## Samples
 
-* **Samples.Console** — simplest possible usage
-* **Samples.WebApi** — minimal API with DI, logging behavior, notifications
-
-Run a sample:
-
-```bash
-cd samples/Samples.WebApi
-dotnet run
-```
-
----
-
-## Project Layout
-
-```
-{REPO_ROOT}/
-├─ src/
-│  ├─ ConduitR.Abstractions/
-│  ├─ ConduitR/
-│  ├─ ConduitR.DependencyInjection/
-│  ├─ ConduitR.AspNetCore/                 # optional
-│  ├─ ConduitR.SourceGenerators/           # optional
-│  ├─ Directory.Build.props
-│  └─ Directory.Build.targets
-├─ tests/
-│  ├─ ConduitR.Tests/                     # unit tests
-│  └─ ConduitR.IntegrationTests/          # integration tests
-├─ benchmarks/
-│  └─ ConduitR.Benchmarks/                # BenchmarkDotNet
-├─ samples/
-│  ├─ Samples.Console/
-│  └─ Samples.WebApi/
-├─ docs/
-│  ├─ getting-started.md
-│  ├─ architecture.md
-│  ├─ behaviors.md
-│  ├─ roadmap.md
-│  ├─ faq.md
-│  └─ changelog.md
-├─ .github/
-│  ├─ workflows/
-│  │  └─ build.yml
-│  ├─ ISSUE_TEMPLATE/
-│  │  ├─ bug_report.md
-│  │  └─ feature_request.md
-│  ├─ pull_request_template.md
-│  ├─ CODEOWNERS
-│  └─ FUNDING.yml
-├─ .editorconfig
-├─ .gitattributes
-├─ LICENSE
-├─ README.md
-└─ CONTRIBUTING.md
-```
-
-Key repository features:
-
-* Centralized versioning & metadata in `Directory.Build.props`.
-* SourceLink + deterministic builds for great debugging.
-* Nullable enabled, analyzers (StyleCop/IDEs) tuned in `Directory.Build.props`.
-* GitHub Actions: CI (build/test/pack), PR validation, NuGet publish on tag.
-* DocFX documentation site (optional) — HTML output deployable to GitHub Pages.
-
----
-
-## Design Goals
-
-* **Minimal API surface** with strong conventions.
-* **Predictable performance**: lean abstractions, ValueTask‑first where reasonable.
-* **Cancellation propagation** everywhere.
-* **OpenTelemetry‑friendly** diagnostics hooks.
-* **Extensible pipeline**: behaviors chain with short‑circuiting.
-
----
-
-## Documentation
-
-* `docs/getting-started.md` — extended quickstart
-* `docs/architecture.md` — internals & design tradeoffs
-* `docs/behaviors.md` — authoring pipeline behaviors
-* `docs/roadmap.md` — planned features
-* `docs/faq.md` — common questions
-* `docs/changelog.md` — keep a human‑readable history (also use GitHub Releases)
-
-> API docs are generated with **DocFX** from XML comments. See `docs/` for instructions.
-
----
-
-## Development
-
-### Prerequisites
-
-* .NET 8 or 9 SDK
-* (optional) VS Code or Visual Studio 2022+
-
-### Build, Test, Pack
-
-```bash
-dotnet build
-dotnet test --configuration Release
-dotnet pack -p:PackageVersion=0.1.0 -c Release -o ./artifacts
-```
-
-### Running Benchmarks
-
-```bash
-cd benchmarks/ConduitR.Benchmarks
-dotnet run -c Release
-```
-
-### Local API Docs (DocFX)
-
-```bash
-# once
-dotnet tool update -g docfx
-# generate site
-cd docs
-docfx
-docfx serve _site
-```
-
----
-
-## Contributing
-
-Contributions are welcome! Please read `CONTRIBUTING.md` for how to:
-
-* Propose features and file issues
-* Run the full build + tests locally
-* Submit a PR (formatting, analyzers, commit conventions)
-
-We follow **Conventional Commits** and **Semantic Versioning**.
-
----
+* `samples/Samples.WebApi` — minimal API, ProblemDetails, validation, and streaming endpoint.
 
 ## Versioning & Releases
 
-* **SemVer**: `MAJOR.MINOR.PATCH`
-* CI publishes prerelease packages on every push to `main` using `-pre{shortsha}`.
-* Create a Git tag `vX.Y.Z` on `main` to publish a stable NuGet release and generate GitHub Release notes.
+* Semantic versioning. Latest stable: **1.0.2**
+* See GitHub Releases for notes.
 
-> The CI workflow is in `.github/workflows/build.yml`. Update secrets `NUGET_API_KEY` as needed.
+## Contributing
 
----
+PRs welcome!
+Dev loop:
 
-## Security
+```bash
+dotnet restore
+dotnet build
+dotnet test
+```
 
-Please do **not** open public issues for security problems. Email `{SECURITY_CONTACT_EMAIL}` with details.
+(Optional) microbenchmarks:
 
----
+```bash
+dotnet run -c Release --project benchmarks/ConduitR.Benchmarks/ConduitR.Benchmarks.csproj
+```
 
 ## License
 
-This project is licensed under the **MIT License** — see `LICENSE`.
-
----
-
-## Acknowledgements
-
-Inspired by the excellent ideas behind **CQRS** and existing mediator libraries.
+MIT — see [LICENSE](LICENSE).
 
 
-## FAQ (short)
 
-**Q: Is this a drop‑in replacement for MediatR?**
-A: The concepts, interfaces, and behaviors are familiar. Small API differences are intentional for performance and clarity. A thin shim package can be provided if desired.
+### Commit it
+```bash
+git add README.md
+git commit -m "docs: refresh README with streaming, publish strategies, processing, resilience, telemetry, perf"
+git push
+````
 
-**Q: Can I use other DI containers?**
-A: Yes. The core is container‑agnostic; `DependencyInjection` is for convenience.
-
-**Q: Does it support streaming?**
-A: Yes via `IStreamRequest<T>`/`IStreamRequestHandler<TRequest,T>` (optional package or sample provided).
