@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 
 namespace ConduitR.Abstractions;
 
+/// <summary>Central mediator responsible for sending requests and publishing notifications.</summary>
 public interface IMediator
 {
     ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default);
