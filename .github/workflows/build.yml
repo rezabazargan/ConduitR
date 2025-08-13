@@ -54,7 +54,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
-          BASE="0.1.0"                   # bump this when starting a new pre-release train
+          BASE="1.0.2"                   # bump this when starting a new pre-release train
           DATE=$(date -u +%Y%m%dT%H%M)
           SHA=$(git rev-parse --short "$GITHUB_SHA")
           echo "PKG_VER=${BASE}-pre.${DATE}.${SHA}" >> $GITHUB_ENV
