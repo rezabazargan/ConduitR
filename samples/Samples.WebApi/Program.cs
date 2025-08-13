@@ -6,6 +6,7 @@ using ConduitR.AspNetCore;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using ConduitR.Processing;
+using ConduitR.Resilience.Polly;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,14 @@ builder.Services.AddConduit(cfg =>
 builder.Services.AddConduitValidation(Assembly.GetExecutingAssembly());
 builder.Services.AddConduitProblemDetails();
 builder.Services.AddConduitProcessing(typeof(Program).Assembly);
+builder.Services.AddConduitResiliencePolly(o =>
+{
+    o.RetryCount = 3;                    // 3 retries with exponential backoff
+    o.Timeout = TimeSpan.FromSeconds(1); // per-attempt timeout
+    o.CircuitBreakerEnabled = true;      // optional circuit breaker
+    o.CircuitBreakerFailures = 5;
+    o.CircuitBreakerDuration = TimeSpan.FromSeconds(30);
+});
 var app = builder.Build();
 
 app.UseConduitProblemDetails();
@@ -110,3 +119,20 @@ public sealed class MetricsPost : IRequestPostProcessor<GetTimeQuery,string>
 {
     public Task Process(GetTimeQuery req, string res, CancellationToken ct) { /* metrics */ return Task.CompletedTask; }
 }
+
+
+// Resilience Sample
+public sealed record Flaky(int FailuresBeforeSuccess) : IRequest<string>;
+public sealed class FlakyHandler : IRequestHandler<Flaky, string>
+{
+    private static int calls;
+    public async ValueTask<string> Handle(Flaky r, CancellationToken ct)
+    {
+        var call = Interlocked.Increment(ref calls);
+        if (call <= r.FailuresBeforeSuccess) throw new InvalidOperationException("boom");
+        calls = 0;
+        await Task.Yield();
+        return "ok";
+    }
+}
+// Try: await mediator.Send(new Flaky(2)); // succeeds after retries when RetryCount >= 2
