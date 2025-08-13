@@ -1,18 +1,21 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Reflection;
 using ConduitR.Abstractions;
-using ConduitR.Internal;
 
 namespace ConduitR;
 
+/// <summary>Resolves handlers and orchestrates pipeline behaviors.</summary>
 public sealed partial class Mediator : IMediator
 {
+    /// <summary>Factory delegate used to resolve services (handlers/behaviors) from DI.</summary>
     public delegate IEnumerable<object> GetInstances(Type serviceType);
 
     private readonly GetInstances _getInstances;
     private readonly MediatorOptions _options;
 
-    private static readonly ConcurrentDictionary<(Type Req, Type Res), object> _wrapperCache = new();
+    // Cache compiled Send invokers per closed generic (TRequest,TResponse)
+    private static readonly ConcurrentDictionary<(Type Req, Type Res), object> _sendInvokerCache = new();
 
     public Mediator(GetInstances getInstances, MediatorOptions? options = null)
     {
@@ -29,14 +32,58 @@ public sealed partial class Mediator : IMediator
         activity?.SetTag("conduitr.response_type", typeof(TResponse).FullName);
 
         var key = (request.GetType(), typeof(TResponse));
-        var wrapperObj = _wrapperCache.GetOrAdd(key, static k =>
+
+        // Get or compile the invoker delegate for this closed generic
+        var delObj = _sendInvokerCache.GetOrAdd(key, static k =>
         {
-            var wrapperType = typeof(RequestHandlerWrapper<,>).MakeGenericType(k.Req, k.Res);
-            return Activator.CreateInstance(wrapperType)!;
+            var mi = typeof(Mediator).GetMethod(nameof(InvokeSend), BindingFlags.NonPublic | BindingFlags.Static)!;
+            var g = mi.MakeGenericMethod(k.Req, k.Res);
+            return g.CreateDelegate(typeof(SendInvoker<>).MakeGenericType(k.Res));
         });
 
-        var wrapper = (IRequestHandlerWrapper<TResponse>)wrapperObj;
-        return wrapper.Handle(request, cancellationToken, t => _getInstances(t));
+        var del = (SendInvoker<TResponse>)delObj;
+        return del(request, cancellationToken, _getInstances);
+    }
+
+    // Invoker signature (generic over TResponse only for cache storage)
+    private delegate ValueTask<TResponse> SendInvoker<TResponse>(IRequest<TResponse> request, CancellationToken ct, GetInstances getInstances);
+
+    // Composes pipeline for specific TRequest/TResponse and executes it
+    private static ValueTask<TResponse> InvokeSend<TRequest, TResponse>(IRequest<TResponse> request, CancellationToken ct, GetInstances getInstances)
+        where TRequest : IRequest<TResponse>
+    {
+        // Resolve single handler w/out LINQ
+        IRequestHandler<TRequest, TResponse>? handler = null;
+        foreach (var obj in getInstances(typeof(IRequestHandler<TRequest, TResponse>)))
+        {
+            if (obj is IRequestHandler<TRequest, TResponse> h)
+            {
+                if (handler is not null)
+                    throw new InvalidOperationException($"Multiple handlers registered for {typeof(TRequest).FullName}");
+                handler = h;
+            }
+        }
+        if (handler is null)
+            throw new InvalidOperationException($"No handler registered for {typeof(TRequest).FullName}");
+
+        // Resolve behaviors
+        var behaviors = new List<IPipelineBehavior<TRequest, TResponse>>(capacity: 4);
+        foreach (var obj in getInstances(typeof(IPipelineBehavior<TRequest, TResponse>)))
+        {
+            if (obj is IPipelineBehavior<TRequest, TResponse> b) behaviors.Add(b);
+        }
+
+        var typedRequest = (TRequest)request;
+        RequestHandlerDelegate<TResponse> next = () => handler.Handle(typedRequest, ct);
+
+        for (int i = behaviors.Count - 1; i >= 0; i--)
+        {
+            var current = behaviors[i];
+            var nextCopy = next;
+            next = () => current.Handle(typedRequest, ct, nextCopy);
+        }
+
+        return next();
     }
 
     public async Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
@@ -44,6 +91,7 @@ public sealed partial class Mediator : IMediator
     {
         if (notification is null) throw new ArgumentNullException(nameof(notification));
 
+        // Enumerate handlers with minimal allocations
         var instances = _getInstances(typeof(INotificationHandler<TNotification>));
         if (instances is null) return;
 
@@ -85,10 +133,8 @@ public sealed partial class Mediator : IMediator
             tasks[i] = InvokeHandler(handler, notification, ct, activity, handlerType, sw);
         }
 
-        if (tasks.Length == 1)
-            await tasks[0].ConfigureAwait(false);
-        else
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+        if (tasks.Length == 1) await tasks[0].ConfigureAwait(false);
+        else await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     private static async Task PublishSequential<TNotification>(IReadOnlyList<INotificationHandler<TNotification>> handlers, TNotification notification, CancellationToken ct, Activity? activity, bool stopOnFirstException)
