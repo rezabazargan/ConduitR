@@ -24,6 +24,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConduitR.Validation.FluentV
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConduitR.AspNetCore", "src\ConduitR.AspNetCore\ConduitR.AspNetCore.csproj", "{A132CDA2-C933-446E-AB44-C67420850222}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmarks", "benchmarks", "{E690F7DA-924B-415B-9262-31B7ABCEB87B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConduitR.Benchmarks", "benchmarks\ConduitR.Benchmarks\ConduitR.Benchmarks.csproj", "{A7188F27-DEA5-49BE-92E5-3E157997B2F4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -62,6 +66,10 @@ Global
 		{A132CDA2-C933-446E-AB44-C67420850222}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A132CDA2-C933-446E-AB44-C67420850222}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A132CDA2-C933-446E-AB44-C67420850222}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7188F27-DEA5-49BE-92E5-3E157997B2F4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7188F27-DEA5-49BE-92E5-3E157997B2F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7188F27-DEA5-49BE-92E5-3E157997B2F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7188F27-DEA5-49BE-92E5-3E157997B2F4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -75,6 +83,7 @@ Global
 		{68C9D51B-1236-B026-1B58-4CF6D141836A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{C197B140-E3E2-422E-919C-4F721001CDF1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A132CDA2-C933-446E-AB44-C67420850222} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{A7188F27-DEA5-49BE-92E5-3E157997B2F4} = {E690F7DA-924B-415B-9262-31B7ABCEB87B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6239E645-A5B6-4A37-901E-4B666E1730FC}
