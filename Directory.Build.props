@@ -7,8 +7,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Authors>ConduitR Authors</Authors>
     <Company>ConduitR</Company>
-    <RepositoryUrl>https://github.com/{ORG}/conduitr</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/{ORG}/conduitr</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/rezabazargan/ConduitR</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/rezabazargan/ConduitR</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
