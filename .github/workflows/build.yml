@@ -74,6 +74,7 @@ jobs:
           dotnet pack src/ConduitR.Abstractions/ConduitR.Abstractions.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
           dotnet pack src/ConduitR/ConduitR.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
           dotnet pack src/ConduitR.DependencyInjection/ConduitR.DependencyInjection.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          dotnet pack src/ConduitR.Processing/ConduitR.Processing.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
           # include add-ons if present in your repo
           if [ -f src/ConduitR.Validation.FluentValidation/ConduitR.Validation.FluentValidation.csproj ]; then
             dotnet pack src/ConduitR.Validation.FluentValidation/ConduitR.Validation.FluentValidation.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
