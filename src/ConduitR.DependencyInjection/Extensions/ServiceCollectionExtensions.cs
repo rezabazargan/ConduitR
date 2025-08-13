@@ -1,3 +1,4 @@
+using ConduitR;
 using ConduitR.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -11,8 +12,10 @@ public static class ServiceCollectionExtensions
         var options = new ConduitOptions();
         configure?.Invoke(options);
 
+        services.TryAddSingleton(new MediatorOptions { PublishStrategy = options.PublishStrategy });
+
         services.AddScoped<ConduitR.Mediator>();
-        services.AddScoped<IMediator>(sp => new ConduitR.Mediator(type => sp.GetServices(type)!.Cast<object>()));
+        services.AddScoped<IMediator>(sp => new ConduitR.Mediator(type => sp.GetServices(type)!.Cast<object>(), sp.GetRequiredService<MediatorOptions>()));
 
         foreach (var behaviorType in options.Behaviors)
         {

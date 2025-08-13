@@ -5,20 +5,19 @@ using ConduitR.Internal;
 
 namespace ConduitR;
 
-/// <summary>Resolves handlers and orchestrates pipeline behaviors.</summary>
 public sealed partial class Mediator : IMediator
 {
-    /// <summary>Factory delegate used to resolve services (handlers/behaviors) from DI.</summary>
     public delegate IEnumerable<object> GetInstances(Type serviceType);
 
     private readonly GetInstances _getInstances;
+    private readonly MediatorOptions _options;
 
-    // Cache of stateless handler wrappers keyed by (request type, response type)
     private static readonly ConcurrentDictionary<(Type Req, Type Res), object> _wrapperCache = new();
 
-    public Mediator(GetInstances getInstances)
+    public Mediator(GetInstances getInstances, MediatorOptions? options = null)
     {
         _getInstances = getInstances ?? throw new ArgumentNullException(nameof(getInstances));
+        _options = options ?? new MediatorOptions();
     }
 
     public ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
@@ -30,7 +29,6 @@ public sealed partial class Mediator : IMediator
         activity?.SetTag("conduitr.response_type", typeof(TResponse).FullName);
 
         var key = (request.GetType(), typeof(TResponse));
-        // Wrapper is stateless, safe to cache one instance per closed generic
         var wrapperObj = _wrapperCache.GetOrAdd(key, static k =>
         {
             var wrapperType = typeof(RequestHandlerWrapper<,>).MakeGenericType(k.Req, k.Res);
@@ -46,11 +44,9 @@ public sealed partial class Mediator : IMediator
     {
         if (notification is null) throw new ArgumentNullException(nameof(notification));
 
-        // Enumerate handlers with minimal allocations
         var instances = _getInstances(typeof(INotificationHandler<TNotification>));
         if (instances is null) return;
 
-        // Build a local list; avoid LINQ allocations
         var handlers = new List<INotificationHandler<TNotification>>(4);
         foreach (var obj in instances)
         {
@@ -61,25 +57,76 @@ public sealed partial class Mediator : IMediator
         using var activity = ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Publish", ActivityKind.Internal);
         activity?.SetTag("conduitr.notification_type", typeof(TNotification).FullName);
         activity?.SetTag("conduitr.handlers.count", handlers.Count);
+        activity?.SetTag("conduitr.publish_strategy", _options.PublishStrategy.ToString());
 
-        // Execute all handlers
+        switch (_options.PublishStrategy)
+        {
+            case PublishStrategy.Parallel:
+                await PublishParallel(handlers, notification, cancellationToken, activity).ConfigureAwait(false);
+                break;
+            case PublishStrategy.Sequential:
+                await PublishSequential(handlers, notification, cancellationToken, activity, stopOnFirstException: false).ConfigureAwait(false);
+                break;
+            case PublishStrategy.StopOnFirstException:
+                await PublishSequential(handlers, notification, cancellationToken, activity, stopOnFirstException: true).ConfigureAwait(false);
+                break;
+        }
+    }
+
+    private static async Task PublishParallel<TNotification>(IReadOnlyList<INotificationHandler<TNotification>> handlers, TNotification notification, CancellationToken ct, Activity? activity)
+        where TNotification : INotification
+    {
         var tasks = new Task[handlers.Count];
         for (int i = 0; i < handlers.Count; i++)
         {
             var handler = handlers[i];
             var handlerType = handler.GetType();
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            tasks[i] = InvokeHandler(handler, notification, cancellationToken, activity, handlerType, sw);
+            tasks[i] = InvokeHandler(handler, notification, ct, activity, handlerType, sw);
         }
 
         if (tasks.Length == 1)
-        {
             await tasks[0].ConfigureAwait(false);
-        }
         else
-        {
             await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
+
+    private static async Task PublishSequential<TNotification>(IReadOnlyList<INotificationHandler<TNotification>> handlers, TNotification notification, CancellationToken ct, Activity? activity, bool stopOnFirstException)
+        where TNotification : INotification
+    {
+        List<Exception>? errors = null;
+        for (int i = 0; i < handlers.Count; i++)
+        {
+            var handler = handlers[i];
+            var handlerType = handler.GetType();
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                await handler.Handle(notification, ct).ConfigureAwait(false);
+                sw.Stop();
+                activity?.AddEvent(new ActivityEvent("handler.completed", tags: new ActivityTagsCollection
+                {
+                    { "conduitr.handler", handlerType.FullName ?? handlerType.Name },
+                    { "conduitr.elapsed_ms", sw.Elapsed.TotalMilliseconds }
+                }));
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                activity?.AddEvent(new ActivityEvent("handler.exception", tags: new ActivityTagsCollection
+                {
+                    { "exception.type", ex.GetType().FullName },
+                    { "exception.message", ex.Message },
+                    { "conduitr.handler", handlerType.FullName ?? handlerType.Name },
+                    { "conduitr.elapsed_ms", sw.Elapsed.TotalMilliseconds }
+                }));
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                if (stopOnFirstException) throw;
+                (errors ??= new List<Exception>(2)).Add(ex);
+            }
         }
+
+        if (errors is { Count: > 0 }) throw new AggregateException(errors);
     }
 
     private static async Task InvokeHandler<TNotification>(INotificationHandler<TNotification> handler, TNotification notification, CancellationToken ct, Activity? parent, Type handlerType, System.Diagnostics.Stopwatch sw) where TNotification : INotification
