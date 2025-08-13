@@ -6,6 +6,7 @@ on:
     tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch: {}
 
 jobs:
   build:
@@ -15,9 +16,29 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'   # builds net8 projects; keep or bump if you switch TFMs
+          dotnet-version: '8.0.x'
 
-      # Create a solution and add all projects (no fragile globs)
+      # Figure out if this is a tag build or a main push, and set VERSION accordingly
+      - name: Determine version
+        shell: bash
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # Stable from tag
+            VER="${GITHUB_REF#refs/tags/v}"
+            echo "IS_TAG=true" >> $GITHUB_ENV
+            echo "VERSION=$VER" >> $GITHUB_ENV
+          elif [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            # Prerelease from main
+            BASE="1.0.2"   # <-- bump when you start the next prerelease train
+            DATE=$(date -u +%Y%m%dT%H%M)
+            SHA=$(git rev-parse --short "$GITHUB_SHA")
+            echo "IS_MAIN=true" >> $GITHUB_ENV
+            echo "VERSION=${BASE}-pre.${DATE}.${SHA}" >> $GITHUB_ENV
+          fi
+          echo "VERSION=$VERSION"
+
+      # Use existing solution if present; otherwise create and add projects
       - name: Create or reuse solution
         shell: bash
         run: |
@@ -26,10 +47,9 @@ jobs:
             echo "Using existing $SOL"
           else
             dotnet new sln -n ConduitR
+            SOL=ConduitR.sln
           fi
-          # add all csproj under src/, samples/, tests/ if not already included
           mapfile -t PROJS < <(find src samples tests -type f -name "*.csproj" | sort)
-          # list once to avoid repeated CLI calls
           dotnet sln "$SOL" list || true
           for p in "${PROJS[@]}"; do
             if dotnet sln "$SOL" list | grep -Fq "$p"; then
@@ -38,7 +58,6 @@ jobs:
               dotnet sln "$SOL" add "$p"
             fi
           done
-
 
       - name: Restore
         run: dotnet restore ConduitR.sln
@@ -49,43 +68,22 @@ jobs:
       - name: Test
         run: dotnet test -c Release ConduitR.sln --no-build --verbosity normal
 
-      # ---------- Pre-release on pushes to main ----------
-      - name: Compute prerelease version
-        if: github.ref == 'refs/heads/main'
-        shell: bash
+      # Pack everything (both prerelease and stable use $VERSION)
+      - name: Pack all projects
         run: |
-          BASE="0.1.0"                   # bump this when starting a new pre-release train
-          DATE=$(date -u +%Y%m%dT%H%M)
-          SHA=$(git rev-parse --short "$GITHUB_SHA")
-          echo "PKG_VER=${BASE}-pre.${DATE}.${SHA}" >> $GITHUB_ENV
-          echo "PKG_VER=$PKG_VER"
+          dotnet pack src/ConduitR.Abstractions/ConduitR.Abstractions.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          dotnet pack src/ConduitR/ConduitR.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          dotnet pack src/ConduitR.DependencyInjection/ConduitR.DependencyInjection.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          # include add-ons if present in your repo
+          if [ -f src/ConduitR.Validation.FluentValidation/ConduitR.Validation.FluentValidation.csproj ]; then
+            dotnet pack src/ConduitR.Validation.FluentValidation/ConduitR.Validation.FluentValidation.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          fi
+          if [ -f src/ConduitR.AspNetCore/ConduitR.AspNetCore.csproj ]; then
+            dotnet pack src/ConduitR.AspNetCore/ConduitR.AspNetCore.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          fi
 
-      - name: Pack (pre-release)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          dotnet pack src/ConduitR.Abstractions/ConduitR.Abstractions.csproj -c Release -o artifacts -p:PackageVersion=${PKG_VER}
-          dotnet pack src/ConduitR/ConduitR.csproj -c Release -o artifacts -p:PackageVersion=${PKG_VER}
-          dotnet pack src/ConduitR.DependencyInjection/ConduitR.DependencyInjection.csproj -c Release -o artifacts -p:PackageVersion=${PKG_VER}
-
-      - name: Publish prerelease to NuGet
-        if: github.ref == 'refs/heads/main'
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: dotnet nuget push artifacts/*.nupkg -k "$NUGET_API_KEY" -s https://api.nuget.org/v3/index.json --skip-duplicate
-
-      # ---------- Stable on tags vX.Y.Z ----------
-      - name: Pack (stable)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          dotnet pack src/ConduitR.Abstractions/ConduitR.Abstractions.csproj -c Release -o artifacts
-          dotnet pack src/ConduitR/ConduitR.csproj -c Release -o artifacts
-          dotnet pack src/ConduitR.DependencyInjection/ConduitR.DependencyInjection.csproj -c Release -o artifacts
-          dotnet pack src/ConduitR.Validation.FluentValidation/ConduitR.Validation.FluentValidation.csproj -c Release -o artifacts
-          dotnet pack src/ConduitR.AspNetCore/ConduitR.AspNetCore.csproj -c Release -o artifacts
-
-
-      - name: Publish stable to NuGet
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish to NuGet
+        if: env.IS_TAG == 'true' || env.IS_MAIN == 'true'
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: dotnet nuget push artifacts/*.nupkg -k "$NUGET_API_KEY" -s https://api.nuget.org/v3/index.json --skip-duplicate
