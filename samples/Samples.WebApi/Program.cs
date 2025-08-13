@@ -5,6 +5,7 @@ using ConduitR.Validation.FluentValidation;
 using ConduitR.AspNetCore;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
+using ConduitR.Processing;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,7 +17,7 @@ builder.Services.AddConduit(cfg =>
 
 builder.Services.AddConduitValidation(Assembly.GetExecutingAssembly());
 builder.Services.AddConduitProblemDetails();
-
+builder.Services.AddConduitProcessing(typeof(Program).Assembly);
 var app = builder.Build();
 
 app.UseConduitProblemDetails();
@@ -99,4 +100,13 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         _logger.LogInformation("Handled {RequestType}", typeof(TRequest).Name);
         return response;
     }
+}
+
+public sealed class AuditPre : IRequestPreProcessor<GetTimeQuery>
+{
+    public Task Process(GetTimeQuery req, CancellationToken ct) { /* audit */ return Task.CompletedTask; }
+}
+public sealed class MetricsPost : IRequestPostProcessor<GetTimeQuery,string>
+{
+    public Task Process(GetTimeQuery req, string res, CancellationToken ct) { /* metrics */ return Task.CompletedTask; }
 }

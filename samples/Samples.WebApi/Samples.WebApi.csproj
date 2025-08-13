@@ -8,6 +8,7 @@
     <ProjectReference Include="..\..\src\ConduitR.DependencyInjection\ConduitR.DependencyInjection.csproj" />
     <ProjectReference Include="..\..\src\ConduitR.Validation.FluentValidation\ConduitR.Validation.FluentValidation.csproj" />
     <ProjectReference Include="..\..\src\ConduitR.AspNetCore\ConduitR.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\ConduitR.Processing\ConduitR.Processing.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
