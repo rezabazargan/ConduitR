@@ -80,6 +80,9 @@ jobs:
           dotnet pack src/ConduitR.Abstractions/ConduitR.Abstractions.csproj -c Release -o artifacts
           dotnet pack src/ConduitR/ConduitR.csproj -c Release -o artifacts
           dotnet pack src/ConduitR.DependencyInjection/ConduitR.DependencyInjection.csproj -c Release -o artifacts
+          dotnet pack src/ConduitR.Validation.FluentValidation/ConduitR.Validation.FluentValidation.csproj -c Release -o artifacts
+          dotnet pack src/ConduitR.AspNetCore/ConduitR.AspNetCore.csproj -c Release -o artifacts
+
 
       - name: Publish stable to NuGet
         if: startsWith(github.ref, 'refs/tags/v')
