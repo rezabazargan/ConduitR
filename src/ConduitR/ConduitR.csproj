@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Core mediator implementation for ConduitR.</Description>
+    <IsPackable>true</IsPackable>
+    <AssemblyName>ConduitR</AssemblyName>
+    <RootNamespace>ConduitR</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ConduitR.Abstractions\ConduitR.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

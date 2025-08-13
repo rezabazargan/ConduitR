@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Microsoft.Extensions.DependencyInjection integration for ConduitR.</Description>
+    <IsPackable>true</IsPackable>
+    <AssemblyName>ConduitR.DependencyInjection</AssemblyName>
+    <RootNamespace>ConduitR.DependencyInjection</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ConduitR.Abstractions\ConduitR.Abstractions.csproj" />
+    <ProjectReference Include="..\ConduitR\ConduitR.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+</Project>

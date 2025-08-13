@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Interfaces and contracts for ConduitR mediator.</Description>
+    <IsPackable>true</IsPackable>
+    <AssemblyName>ConduitR.Abstractions</AssemblyName>
+    <RootNamespace>ConduitR.Abstractions</RootNamespace>
+  </PropertyGroup>
+</Project>
