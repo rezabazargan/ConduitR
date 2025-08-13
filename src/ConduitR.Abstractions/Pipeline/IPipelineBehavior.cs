@@ -3,11 +3,7 @@ using System.Threading.Tasks;
 
 namespace ConduitR.Abstractions;
 
-/// <summary>Delegate used by pipeline behaviors to invoke the next action.</summary>
-/// <typeparam name="TResponse">Response type.</typeparam>
-public delegate ValueTask<TResponse> RequestHandlerDelegate<TResponse>();
-
-/// <summary>Pipeline behavior for cross-cutting concerns.</summary>
+/// <summary>Pipeline behavior for cross-cutting concerns around request handling.</summary>
 public interface IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
