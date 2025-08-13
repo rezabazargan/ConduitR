@@ -18,13 +18,27 @@ jobs:
           dotnet-version: '8.0.x'   # builds net8 projects; keep or bump if you switch TFMs
 
       # Create a solution and add all projects (no fragile globs)
-      - name: Create solution
-        shell: bash
-        run: |
+      - name: Create or reuse solution
+      shell: bash
+      run: |
+        SOL=ConduitR.sln
+        if [ -f "$SOL" ]; then
+          echo "Using existing $SOL"
+        else
           dotnet new sln -n ConduitR
-          # add all csproj under src/, samples/, tests/
-          mapfile -t PROJS < <(find src samples tests -type f -name "*.csproj" | sort)
-          dotnet sln ConduitR.sln add "${PROJS[@]}"
+        fi
+        # add all csproj under src/, samples/, tests/ if not already included
+        mapfile -t PROJS < <(find src samples tests -type f -name "*.csproj" | sort)
+        # list once to avoid repeated CLI calls
+        dotnet sln "$SOL" list || true
+        for p in "${PROJS[@]}"; do
+          if dotnet sln "$SOL" list | grep -Fq "$p"; then
+            echo "Already in solution: $p"
+          else
+            dotnet sln "$SOL" add "$p"
+          fi
+        done
+
 
       - name: Restore
         run: dotnet restore ConduitR.sln
