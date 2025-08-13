@@ -1,4 +1,5 @@
 using System.Reflection;
+using ConduitR;
 
 namespace ConduitR.DependencyInjection;
 
@@ -6,6 +7,7 @@ public sealed class ConduitOptions
 {
     internal List<Assembly> Assemblies { get; } = new();
     internal List<Type> Behaviors { get; } = new();
+    public PublishStrategy PublishStrategy { get; set; } = PublishStrategy.Parallel;
 
     public ConduitOptions AddHandlersFromAssemblies(params Assembly[] assemblies)
     {
