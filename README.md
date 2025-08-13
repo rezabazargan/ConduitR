@@ -2,7 +2,7 @@
 
 > A lean, high‑performance mediator-style messaging library for .NET — request/response, commands, queries, notifications, and pipeline behaviors — designed as a modern, open alternative to MediatR.
 
-[![Build](https://img.shields.io/github/actions/workflow/status/{ORG}/conduitr/build.yml?branch=main)](../../actions)
+[![Build](https://img.shields.io/github/actions/workflow/status/rezabazargan/conduitr/build.yml?branch=main)](../../actions)
 [![NuGet](https://img.shields.io/nuget/v/ConduitR.svg)](https://www.nuget.org/packages/ConduitR)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/ConduitR.svg)](https://www.nuget.org/packages/ConduitR)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
