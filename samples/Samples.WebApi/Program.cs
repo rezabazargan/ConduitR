@@ -24,12 +24,25 @@ app.UseConduitProblemDetails();
 app.MapGet("/time/{tz}", async (string tz, IMediator mediator, CancellationToken ct)
     => await mediator.Send(new GetTimeQuery(tz), ct));
 
-// Demonstrate POST with automatic mediator send + validation
+// Streaming endpoint: yields 'count' ticks
+app.MapGet("/ticks/{count:int}", async (int count, ConduitR.Mediator mediator, HttpResponse resp, CancellationToken ct) =>
+{
+    resp.ContentType = "application/x-ndjson";
+
+    await foreach (var item in mediator.CreateStream(new TicksQuery(count), ct).WithCancellation(ct))
+    {
+        await resp.WriteAsync(item + "\n", ct);
+        await resp.Body.FlushAsync(ct);
+    }
+
+    return Results.Empty; // 200 OK with streamed body
+});
+
 app.MapMediatorPost<Echo, string>("/echo");
 
 app.Run();
 
-// Sample request/handler
+// Requests/Handlers
 public sealed record GetTimeQuery(string TimeZoneId) : IRequest<string>;
 public sealed class GetTimeHandler : IRequestHandler<GetTimeQuery, string>
 {
@@ -46,7 +59,6 @@ public sealed class GetTimeQueryValidator : AbstractValidator<GetTimeQuery>
     public GetTimeQueryValidator() => RuleFor(x => x.TimeZoneId).NotEmpty();
 }
 
-// Echo sample
 public sealed record Echo(string Value) : IRequest<string>;
 public sealed class EchoHandler : IRequestHandler<Echo, string>
 {
@@ -57,7 +69,23 @@ public sealed class EchoValidator : AbstractValidator<Echo>
     public EchoValidator() => RuleFor(x => x.Value).NotEmpty();
 }
 
-// Sample logging behavior in the sample project (so the core stays dependency-free)
+// Streaming sample
+public sealed record TicksQuery(int Count) : IStreamRequest<string>;
+
+public sealed class TicksHandler : IStreamRequestHandler<TicksQuery, string>
+{
+    public async IAsyncEnumerable<string> Handle(TicksQuery request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        for (var i = 1; i <= request.Count; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            await Task.Delay(100, ct);
+            yield return $"tick-{i}";
+        }
+    }
+}
+
+// Sample logging behavior
 public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {

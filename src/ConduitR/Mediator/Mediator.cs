@@ -5,7 +5,7 @@ using ConduitR.Internal;
 namespace ConduitR;
 
 /// <summary>Resolves handlers and orchestrates pipeline behaviors.</summary>
-public sealed class Mediator : IMediator
+public sealed partial class Mediator : IMediator
 {
     /// <summary>Factory delegate used to resolve services (handlers/behaviors) from DI.</summary>
     public delegate IEnumerable<object> GetInstances(Type serviceType);
