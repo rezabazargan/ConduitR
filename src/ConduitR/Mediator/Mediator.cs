@@ -102,23 +102,18 @@ public sealed partial class Mediator : IMediator
         }
         if (handlers.Count == 0) return;
 
-        using var activity = ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Publish", ActivityKind.Internal);
-        activity?.SetTag("conduitr.notification_type", typeof(TNotification).FullName);
-        activity?.SetTag("conduitr.handlers.count", handlers.Count);
-        activity?.SetTag("conduitr.publish_strategy", _options.PublishStrategy.ToString());
-
-        switch (_options.PublishStrategy)
+        if (_options.EnableTelemetry)
         {
-            case PublishStrategy.Parallel:
-                await PublishParallel(handlers, notification, cancellationToken, activity).ConfigureAwait(false);
-                break;
-            case PublishStrategy.Sequential:
-                await PublishSequential(handlers, notification, cancellationToken, activity, stopOnFirstException: false).ConfigureAwait(false);
-                break;
-            case PublishStrategy.StopOnFirstException:
-                await PublishSequential(handlers, notification, cancellationToken, activity, stopOnFirstException: true).ConfigureAwait(false);
-                break;
+            using var activity = ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Publish", ActivityKind.Internal);
+            activity?.SetTag("conduitr.notification_type", typeof(TNotification).FullName);
+            activity?.SetTag("conduitr.handlers.count", handlers.Count);
+            activity?.SetTag("conduitr.publish_strategy", _options.PublishStrategy.ToString());
         }
+
+        var strategy = _options.PublishStrategy;
+        await Internal.PublishInvoker.Cache<TNotification>
+            .Invoke(notification, strategy, cancellationToken, _getInstances)
+            .ConfigureAwait(false);
     }
 
     private static async Task PublishParallel<TNotification>(IReadOnlyList<INotificationHandler<TNotification>> handlers, TNotification notification, CancellationToken ct, Activity? activity)

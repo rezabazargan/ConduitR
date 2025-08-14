@@ -8,6 +8,7 @@ public sealed class ConduitOptions
     internal List<Assembly> Assemblies { get; } = new();
     internal List<Type> Behaviors { get; } = new();
     public PublishStrategy PublishStrategy { get; set; } = PublishStrategy.Parallel;
+    public bool EnableTelemetry { get; set; } = true; // default ON for real apps
 
     public ConduitOptions AddHandlersFromAssemblies(params Assembly[] assemblies)
     {

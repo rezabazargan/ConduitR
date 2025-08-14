@@ -10,6 +10,7 @@ using MediatR;
 // alias overlapping namespaces to avoid ambiguity
 using C = ConduitR.Abstractions;
 using M = MediatR;
+using ConduitR;
 
 public class Program
 {
@@ -31,7 +32,12 @@ public class SendBenchmarks
     {
         // ConduitR
         var s1 = new ServiceCollection();
-        s1.AddConduit(cfg => cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly()));
+        s1.AddConduit(cfg =>
+        {
+            cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
+            cfg.PublishStrategy = PublishStrategy.Sequential;
+            cfg.EnableTelemetry = false; // 🔥 disable Activities for bench
+        });
         _conduit = s1.BuildServiceProvider().GetRequiredService<C.IMediator>();
 
         // MediatR (v11 registration style)
@@ -69,7 +75,12 @@ public class PublishBenchmarks
     public void Setup()
     {
         var s1 = new ServiceCollection();
-        s1.AddConduit(cfg => cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly()));
+        s1.AddConduit(cfg =>
+        {
+            cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
+            cfg.PublishStrategy = PublishStrategy.Sequential;
+            cfg.EnableTelemetry = false; // 🔥 disable Activities for bench
+        });
         _conduit = s1.BuildServiceProvider().GetRequiredService<C.IMediator>();
 
         var s2 = new ServiceCollection();
@@ -113,7 +124,12 @@ public class StreamBenchmarks
     public void Setup()
     {
         var s1 = new ServiceCollection();
-        s1.AddConduit(cfg => cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly()));
+        s1.AddConduit(cfg =>
+        {
+            cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
+            cfg.PublishStrategy = PublishStrategy.Sequential;
+            cfg.EnableTelemetry = false; // 🔥 disable Activities for bench
+        });
         _conduit = (ConduitR.Mediator)s1.BuildServiceProvider().GetRequiredService<C.IMediator>();
 
         var s2 = new ServiceCollection();
@@ -174,7 +190,12 @@ public class SendWithBehaviorsBenchmarks
     {
         // ConduitR
         var s1 = new ServiceCollection();
-        s1.AddConduit(cfg => cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly()));
+    s1.AddConduit(cfg =>
+    {
+        cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
+        cfg.PublishStrategy = PublishStrategy.Sequential;  // fastest for no-op handlers
+        cfg.EnableTelemetry = false;                       // 🔥 disable Activities for bench
+    });
         for (int i = 0; i < BehaviorCount; i++)
             s1.AddTransient(typeof(C.IPipelineBehavior<,>), typeof(NoopBehavior<,>));
         _conduit = s1.BuildServiceProvider().GetRequiredService<C.IMediator>();
@@ -241,7 +262,12 @@ public class PublishHandlerCountsBenchmarks
     public void Setup()
     {
         var s1 = new ServiceCollection();
-        s1.AddConduit(cfg => cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly()));
+        s1.AddConduit(cfg =>
+        {
+            cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
+            cfg.PublishStrategy = PublishStrategy.Sequential;
+            cfg.EnableTelemetry = false; // 🔥 disable Activities for bench
+        });
         for (int i = 0; i < HandlerCount; i++)
             s1.AddTransient(typeof(C.INotificationHandler<Note>), typeof(NopNoteHandler));
         _conduit = s1.BuildServiceProvider().GetRequiredService<C.IMediator>();
@@ -286,7 +312,13 @@ public class StreamCountsBenchmarks
         _r = new Range(0, Count);
 
         var s1 = new ServiceCollection();
-        s1.AddConduit(cfg => cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly()));
+        s1.AddConduit(cfg =>
+        {
+            cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
+            cfg.PublishStrategy = PublishStrategy.Sequential;
+            cfg.EnableTelemetry = false; // 🔥 disable Activities for bench
+        });
+
         _conduit = (ConduitR.Mediator)s1.BuildServiceProvider().GetRequiredService<C.IMediator>();
 
         var s2 = new ServiceCollection();

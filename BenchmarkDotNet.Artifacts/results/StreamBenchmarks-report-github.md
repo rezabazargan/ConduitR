@@ -8,7 +8,7 @@ Intel Core Ultra 7 155H, 1 CPU, 22 logical and 16 physical cores
 
 
 ```
-| Method                             | Mean     | Error    | StdDev   | Median   | Ratio | RatioSD | Gen0   | Allocated | Alloc Ratio |
-|----------------------------------- |---------:|---------:|---------:|---------:|------:|--------:|-------:|----------:|------------:|
-| &#39;ConduitR.CreateStream consume 16&#39; | 14.56 μs | 0.282 μs | 0.302 μs | 14.53 μs |  1.00 |    0.00 | 0.0610 |     791 B |        1.00 |
-| &#39;MediatR.CreateStream consume 16&#39;  | 20.85 μs | 0.412 μs | 0.822 μs | 20.44 μs |  1.44 |    0.07 | 0.0610 |    1019 B |        1.29 |
+| Method                             | Mean     | Error    | StdDev   | Ratio | RatioSD | Gen0   | Allocated | Alloc Ratio |
+|----------------------------------- |---------:|---------:|---------:|------:|--------:|-------:|----------:|------------:|
+| &#39;ConduitR.CreateStream consume 16&#39; | 18.40 μs | 0.404 μs | 1.192 μs |  1.00 |    0.00 | 0.0610 |     801 B |        1.00 |
+| &#39;MediatR.CreateStream consume 16&#39;  | 28.45 μs | 0.568 μs | 1.134 μs |  1.53 |    0.12 | 0.0610 |    1027 B |        1.28 |

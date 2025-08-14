@@ -10,4 +10,5 @@ public enum PublishStrategy
 public sealed class MediatorOptions
 {
     public PublishStrategy PublishStrategy { get; init; } = PublishStrategy.Parallel;
+    public bool EnableTelemetry { get; set; } = true; // default ON for real apps
 }

@@ -12,7 +12,7 @@ public static class ServiceCollectionExtensions
         var options = new ConduitOptions();
         configure?.Invoke(options);
 
-        services.TryAddSingleton(new MediatorOptions { PublishStrategy = options.PublishStrategy });
+        services.TryAddSingleton(new MediatorOptions { PublishStrategy = options.PublishStrategy, EnableTelemetry = options.EnableTelemetry });
 
         services.AddScoped<ConduitR.Mediator>();
         services.AddScoped<IMediator>(sp => new ConduitR.Mediator(type => sp.GetServices(type)!.Cast<object>(), sp.GetRequiredService<MediatorOptions>()));
