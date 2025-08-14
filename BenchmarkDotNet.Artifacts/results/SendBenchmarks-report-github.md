@@ -8,6 +8,7 @@ Intel Core Ultra 7 155H, 1 CPU, 22 logical and 16 physical cores
 
 
 ```
-| Method         | Mean     | Error    | StdDev   | Median   | Gen0   | Allocated |
-|--------------- |---------:|---------:|---------:|---------:|-------:|----------:|
-| Send_WithCache | 504.6 ns | 19.70 ns | 56.83 ns | 480.4 ns | 0.0305 |     384 B |
+| Method        | Mean     | Error   | StdDev   | Ratio | RatioSD | Gen0   | Allocated | Alloc Ratio |
+|-------------- |---------:|--------:|---------:|------:|--------:|-------:|----------:|------------:|
+| ConduitR.Send | 306.4 ns | 5.97 ns |  7.33 ns |  1.00 |    0.00 | 0.0381 |     480 B |        1.00 |
+| MediatR.Send  | 390.1 ns | 7.64 ns | 18.01 ns |  1.31 |    0.06 | 0.1125 |    1416 B |        2.95 |

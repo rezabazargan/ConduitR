@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>StreamCountsBenchmarks-20250813-191138</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 11 (10.0.26100.4946)
+Intel Core Ultra 7 155H, 1 CPU, 22 logical and 16 physical cores
+.NET SDK 9.0.100
+  [Host]     : .NET 8.0.11 (8.0.1124.51707), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.11 (8.0.1124.51707), X64 RyuJIT AVX2
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method                     </th><th>Count</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>&#39;ConduitR.CreateStream consume N&#39;</td><td>16</td><td>14.57 &mu;s</td><td>0.169 &mu;s</td><td>0.158 &mu;s</td><td>1.00</td><td>0.00</td><td>0.0610</td><td>795 B</td><td>1.00</td>
+</tr><tr><td>&#39;MediatR.CreateStream consume N&#39;</td><td>16</td><td>21.03 &mu;s</td><td>0.404 &mu;s</td><td>0.358 &mu;s</td><td>1.44</td><td>0.03</td><td>0.0610</td><td>1018 B</td><td>1.28</td>
+</tr><tr><td>&#39;ConduitR.CreateStream consume N&#39;</td><td>256</td><td>170.36 &mu;s</td><td>2.696 &mu;s</td><td>2.522 &mu;s</td><td>1.00</td><td>0.00</td><td>-</td><td>832 B</td><td>1.00</td>
+</tr><tr><td>&#39;MediatR.CreateStream consume N&#39;</td><td>256</td><td>212.64 &mu;s</td><td>3.142 &mu;s</td><td>2.939 &mu;s</td><td>1.25</td><td>0.03</td><td>-</td><td>1032 B</td><td>1.24</td>
+</tr><tr><td>&#39;ConduitR.CreateStream consume N&#39;</td><td>1024</td><td>660.45 &mu;s</td><td>13.073 &mu;s</td><td>23.904 &mu;s</td><td>1.00</td><td>0.00</td><td>-</td><td>833 B</td><td>1.00</td>
+</tr><tr><td>&#39;MediatR.CreateStream consume N&#39;</td><td>1024</td><td>788.72 &mu;s</td><td>10.173 &mu;s</td><td>9.516 &mu;s</td><td>1.20</td><td>0.04</td><td>-</td><td>1033 B</td><td>1.24</td>
+</tr></tbody></table>
+</body>
+</html>

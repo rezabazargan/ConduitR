@@ -32,6 +32,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConduitR.Processing", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConduitR.Resilience.Polly", "src\ConduitR.Resilience.Polly\ConduitR.Resilience.Polly.csproj", "{A255E140-D514-4B08-B1DC-CC83A559F9F2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConduitR.Benchmarks.Compare", "benchmarks\ConduitR.Benchmarks.Compare\ConduitR.Benchmarks.Compare.csproj", "{765B7A89-333B-4F2F-B87A-1E1FE3738AC8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -82,6 +84,10 @@ Global
 		{A255E140-D514-4B08-B1DC-CC83A559F9F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A255E140-D514-4B08-B1DC-CC83A559F9F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A255E140-D514-4B08-B1DC-CC83A559F9F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{765B7A89-333B-4F2F-B87A-1E1FE3738AC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{765B7A89-333B-4F2F-B87A-1E1FE3738AC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{765B7A89-333B-4F2F-B87A-1E1FE3738AC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{765B7A89-333B-4F2F-B87A-1E1FE3738AC8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -98,6 +104,7 @@ Global
 		{A7188F27-DEA5-49BE-92E5-3E157997B2F4} = {E690F7DA-924B-415B-9262-31B7ABCEB87B}
 		{F3B4C228-9363-4523-8032-E059996F74EC} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A255E140-D514-4B08-B1DC-CC83A559F9F2} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{765B7A89-333B-4F2F-B87A-1E1FE3738AC8} = {E690F7DA-924B-415B-9262-31B7ABCEB87B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6239E645-A5B6-4A37-901E-4B666E1730FC}

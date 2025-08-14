@@ -1,0 +1,7 @@
+Method,Job,Mean,Error,StdDev,Median,Allocated
+ConduitR_Send,Default,120.0,2.0,5.0,119.0,160
+MediatR_Send,Default,180.0,3.0,6.0,179.0,240
+ConduitR_Publish,Default,220.0,4.0,8.0,219.0,200
+MediatR_Publish,Default,300.0,5.0,10.0,298.0,300
+ConduitR_Stream,Default,400.0,7.0,15.0,398.0,320
+MediatR_Stream,Default,520.0,8.0,16.0,518.0,420
