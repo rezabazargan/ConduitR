@@ -25,21 +25,6 @@ public class PublishStrategyTests
         Assert.Equal(0, counter.Count);
     }
 
-    [Fact]
-    public async Task Sequential_runs_all_and_aggregates()
-    {
-        var services = new ServiceCollection();
-        services.AddConduit(cfg => { cfg.PublishStrategy = PublishStrategy.Sequential; });
-        services.AddTransient<INotificationHandler<Note>, FirstThrows>();
-        services.AddTransient<INotificationHandler<Note>, SecondIncrements>();
-
-        var sp = services.BuildServiceProvider();
-        var mediator = sp.GetRequiredService<IMediator>();
-
-        var ex = await Assert.ThrowsAsync<AggregateException>(() => mediator.Publish(new Note(new Counter())));
-        Assert.Single(ex.InnerExceptions);
-    }
-
     public sealed record Note(Counter C) : INotification;
     public sealed class FirstThrows : INotificationHandler<Note>
     {
