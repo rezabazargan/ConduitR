@@ -52,3 +52,5 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+/.vs/ConduitR/FileContentIndex/2a49891b-feab-4999-8469-78b569934929.vsidx
+/.vs/ConduitR/v17/.suo
