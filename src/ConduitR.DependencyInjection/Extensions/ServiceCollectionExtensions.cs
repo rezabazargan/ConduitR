@@ -1,3 +1,4 @@
+﻿using System.Reflection;
 using ConduitR;
 using ConduitR.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,33 +13,78 @@ public static class ServiceCollectionExtensions
         var options = new ConduitOptions();
         configure?.Invoke(options);
 
-        services.TryAddSingleton(new MediatorOptions { PublishStrategy = options.PublishStrategy, EnableTelemetry = options.EnableTelemetry });
-
-        services.AddScoped<ConduitR.Mediator>();
-        services.AddScoped<IMediator>(sp => new ConduitR.Mediator(type => sp.GetServices(type)!.Cast<object>(), sp.GetRequiredService<MediatorOptions>()));
-
-        foreach (var behaviorType in options.Behaviors)
+        if (options.Assemblies.Count == 0)
         {
-            services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IPipelineBehavior<,>), behaviorType));
+            // you can choose a different default; explicit is better:
+            // throw new InvalidOperationException("AddHandlersFromAssemblies(...) was not called.");
+            options.Assemblies.Add(Assembly.GetCallingAssembly());
         }
 
-        foreach (var asm in options.Assemblies.Distinct())
+        // 1) Register handlers found in configured assemblies
+        RegisterHandlers(services, options.Assemblies);
+
+        // 2) Register open-generic pipeline behaviors (if any)
+        foreach (var openBehavior in options.Behaviors)
         {
-            foreach (var type in asm.GetTypes().Where(t => t.IsClass && !t.IsAbstract && !t.IsGenericTypeDefinition))
+            services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IPipelineBehavior<,>), openBehavior));
+        }
+
+        // 3) Register Mediator via factory (so we can pass GetInstances) + IMediator alias
+        services.TryAddScoped<IMediator>(sp => sp.GetRequiredService<Mediator>());
+        services.TryAddScoped(sp =>
+        {
+            // ALWAYS return IEnumerable<object> (works for single & multi)
+            Mediator.GetInstances get = (Type t) =>
             {
-                foreach (var iface in type.GetInterfaces())
+                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>))
                 {
-                    if (!iface.IsGenericType) continue;
-                    var def = iface.GetGenericTypeDefinition();
-                    if (def == typeof(IRequestHandler<,>) || def == typeof(INotificationHandler<>) ||
-                        def == typeof(IStreamRequestHandler<,>) || def == typeof(IStreamPipelineBehavior<,>))
-                    {
-                        services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
-                    }
+                    var elem = t.GenericTypeArguments[0];
+                    return sp.GetServices(elem); // IEnumerable<object> of elem
+                }
+                return sp.GetServices(t);      // IEnumerable<object> (0..n)
+            };
+
+            var medOpts = new MediatorOptions
+            {
+                PublishStrategy = options.PublishStrategy,
+                EnableTelemetry = options.EnableTelemetry
+            };
+
+            return new Mediator(get, medOpts);
+        });
+
+        return services;
+    }
+
+    private static void RegisterHandlers(IServiceCollection services, IEnumerable<Assembly> assemblies)
+    {
+        static bool IsClosed(Type t) => !(t.IsGenericTypeDefinition || t.ContainsGenericParameters);
+
+        var handlerDefs = new[]
+        {
+            typeof(IRequestHandler<,>),
+            typeof(INotificationHandler<>),
+            typeof(IStreamRequestHandler<,>)
+        };
+
+        foreach (var asm in assemblies)
+        {
+            foreach (var type in asm.DefinedTypes)
+            {
+                if (!type.IsClass || type.IsAbstract) continue;
+
+                foreach (var itf in type.GetInterfaces())
+                {
+                    if (!itf.IsGenericType) continue;
+
+                    var def = itf.GetGenericTypeDefinition();
+                    if (!handlerDefs.Contains(def)) continue;
+                    if (!IsClosed(itf)) continue; // only register closed generics
+
+                    // Allow multiple registrations (e.g., many notification handlers)
+                    services.TryAddEnumerable(ServiceDescriptor.Transient(itf, type));
                 }
             }
         }
-
-        return services;
     }
 }
