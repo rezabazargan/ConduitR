@@ -238,12 +238,3 @@ dotnet run -c Release --project benchmarks/ConduitR.Benchmarks/ConduitR.Benchmar
 
 MIT — see [LICENSE](LICENSE).
 
-
-
-### Commit it
-```bash
-git add README.md
-git commit -m "docs: refresh README with streaming, publish strategies, processing, resilience, telemetry, perf"
-git push
-````
-
