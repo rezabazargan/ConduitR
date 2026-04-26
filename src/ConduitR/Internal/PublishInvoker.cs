@@ -53,71 +53,129 @@ internal static class PublishInvoker
 
 private static async Task Sequential(IList<INotificationHandler<TNotification>> list, TNotification n, CancellationToken ct)
 {
+    List<Exception>? errors = null;
     switch (list.Count)
     {
         case 0:
-            return;
+            break;
 
         case 1:
         {
-            var t0 = list[0].Handle(n, ct);
-            if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
-            return;
+            try
+            {
+                var t0 = list[0].Handle(n, ct);
+                if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                (errors ??= new List<Exception>(2)).Add(ex);
+            }
+            break;
         }
 
         case 2:
         {
-            var t0 = list[0].Handle(n, ct);
-            if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
-
-            var t1 = list[1].Handle(n, ct);
-            if (!t1.IsCompletedSuccessfully) await t1.ConfigureAwait(false);
-            return;
+            for (int i = 0; i < 2; i++)
+            {
+                try
+                {
+                    var t = list[i].Handle(n, ct);
+                    if (!t.IsCompletedSuccessfully) await t.ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    (errors ??= new List<Exception>(2)).Add(ex);
+                }
+            }
+            break;
         }
 
         default:
             for (int i = 0; i < list.Count; i++)
             {
-                var t = list[i].Handle(n, ct);
-                if (!t.IsCompletedSuccessfully) await t.ConfigureAwait(false);
+                try
+                {
+                    var t = list[i].Handle(n, ct);
+                    if (!t.IsCompletedSuccessfully) await t.ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    (errors ??= new List<Exception>(2)).Add(ex);
+                }
             }
-            return;
+            break;
     }
-}
 
+    if (errors is { Count: > 0 })
+        throw new AggregateException(errors);
+}
 
         private static async Task Sequential(IEnumerable<INotificationHandler<TNotification>> handlers, TNotification n, CancellationToken ct)
         {
-           switch (handlers.Count())
-    {
-        case 0:
-            return;
-
-        case 1:
-        {
-            var t0 = handlers.First().Handle(n, ct);
-            if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
-            return;
-        }
-
-        case 2:
-        {
-            var t0 = handlers.First().Handle(n, ct);
-            if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
-
-            var t1 = handlers.Skip(1).First().Handle(n, ct);
-            if (!t1.IsCompletedSuccessfully) await t1.ConfigureAwait(false);
-            return;
-        }
-
-        default:
-            for (int i = 0; i < handlers.Count(); i++)
+            List<Exception>? errors = null;
+            switch (handlers.Count())
             {
-                var t = handlers.ElementAt(i).Handle(n, ct);
-                if (!t.IsCompletedSuccessfully) await t.ConfigureAwait(false);
+                case 0:
+                    break;
+
+                case 1:
+                {
+                    try
+                    {
+                        var t0 = handlers.First().Handle(n, ct);
+                        if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        (errors ??= new List<Exception>(2)).Add(ex);
+                    }
+                    break;
+                }
+
+                case 2:
+                {
+                    var first = handlers.First();
+                    var second = handlers.Skip(1).First();
+                    try
+                    {
+                        var t0 = first.Handle(n, ct);
+                        if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        (errors ??= new List<Exception>(2)).Add(ex);
+                    }
+
+                    try
+                    {
+                        var t1 = second.Handle(n, ct);
+                        if (!t1.IsCompletedSuccessfully) await t1.ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        (errors ??= new List<Exception>(2)).Add(ex);
+                    }
+                    break;
+                }
+
+                default:
+                    for (int i = 0; i < handlers.Count(); i++)
+                    {
+                        try
+                        {
+                            var t = handlers.ElementAt(i).Handle(n, ct);
+                            if (!t.IsCompletedSuccessfully) await t.ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            (errors ??= new List<Exception>(2)).Add(ex);
+                        }
+                    }
+                    break;
             }
-            return;
-    }
+
+            if (errors is { Count: > 0 })
+                throw new AggregateException(errors);
         }
 
         // Strict sequential: always await (propagate first exception immediately)
