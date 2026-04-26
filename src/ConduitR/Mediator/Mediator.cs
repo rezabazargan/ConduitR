@@ -26,23 +26,37 @@ public sealed partial class Mediator : IMediator
     public ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
+        return SendCore(request, cancellationToken);
+    }
 
-        using var activity = ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Send", ActivityKind.Internal);
+    private async ValueTask<TResponse> SendCore<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken)
+    {
+        using var activity = _options.EnableTelemetry
+            ? ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Send", ActivityKind.Internal)
+            : null;
         activity?.SetTag("conduitr.request_type", request.GetType().FullName);
         activity?.SetTag("conduitr.response_type", typeof(TResponse).FullName);
 
-        var key = (request.GetType(), typeof(TResponse));
-
-        // Get or compile the invoker delegate for this closed generic
-        var delObj = _sendInvokerCache.GetOrAdd(key, static k =>
+        try
         {
-            var mi = typeof(Mediator).GetMethod(nameof(InvokeSend), BindingFlags.NonPublic | BindingFlags.Static)!;
-            var g = mi.MakeGenericMethod(k.Req, k.Res);
-            return g.CreateDelegate(typeof(SendInvoker<>).MakeGenericType(k.Res));
-        });
+            var key = (request.GetType(), typeof(TResponse));
 
-        var del = (SendInvoker<TResponse>)delObj;
-        return del(request, cancellationToken, _getInstances);
+            // Get or compile the invoker delegate for this closed generic
+            var delObj = _sendInvokerCache.GetOrAdd(key, static k =>
+            {
+                var mi = typeof(Mediator).GetMethod(nameof(InvokeSend), BindingFlags.NonPublic | BindingFlags.Static)!;
+                var g = mi.MakeGenericMethod(k.Req, k.Res);
+                return g.CreateDelegate(typeof(SendInvoker<>).MakeGenericType(k.Res));
+            });
+
+            var del = (SendInvoker<TResponse>)delObj;
+            return await del(request, cancellationToken, _getInstances).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            RecordException(activity, ex);
+            throw;
+        }
     }
 
     // Invoker signature (generic over TResponse only for cache storage)
@@ -102,18 +116,37 @@ public sealed partial class Mediator : IMediator
         }
         if (handlers.Count == 0) return;
 
-        if (_options.EnableTelemetry)
-        {
-            using var activity = ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Publish", ActivityKind.Internal);
-            activity?.SetTag("conduitr.notification_type", typeof(TNotification).FullName);
-            activity?.SetTag("conduitr.handlers.count", handlers.Count);
-            activity?.SetTag("conduitr.publish_strategy", _options.PublishStrategy.ToString());
-        }
+        using var activity = _options.EnableTelemetry
+            ? ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Publish", ActivityKind.Internal)
+            : null;
+        activity?.SetTag("conduitr.notification_type", typeof(TNotification).FullName);
+        activity?.SetTag("conduitr.handlers.count", handlers.Count);
+        activity?.SetTag("conduitr.publish_strategy", _options.PublishStrategy.ToString());
 
         var strategy = _options.PublishStrategy;
-        await Internal.PublishInvoker.Cache<TNotification>
-            .Invoke(notification, strategy, cancellationToken, _getInstances)
-            .ConfigureAwait(false);
+        try
+        {
+            await Internal.PublishInvoker.Cache<TNotification>
+                .Invoke(notification, strategy, cancellationToken, _getInstances)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            RecordException(activity, ex);
+            throw;
+        }
+    }
+
+    private static void RecordException(Activity? activity, Exception exception)
+    {
+        if (activity is null) return;
+
+        activity.AddEvent(new ActivityEvent("exception", tags: new ActivityTagsCollection
+        {
+            { "exception.type", exception.GetType().FullName },
+            { "exception.message", exception.Message }
+        }));
+        activity.SetStatus(ActivityStatusCode.Error, exception.Message);
     }
 
     private static async Task PublishParallel<TNotification>(IReadOnlyList<INotificationHandler<TNotification>> handlers, TNotification notification, CancellationToken ct, Activity? activity)

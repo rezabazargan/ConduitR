@@ -1,7 +1,7 @@
 
 # ConduitR
 
-Lightweight, fast, and familiar mediator for .NET — designed to feel natural for MediatR users, with a focus on performance, simplicity, and great DX.
+Lightweight, fast, and familiar mediator for .NET - designed to feel natural for MediatR users, with a focus on performance, simplicity, and great DX.
 
 [![Build](https://github.com/rezabazargan/ConduitR/actions/workflows/build.yml/badge.svg)](https://github.com/rezabazargan/ConduitR/actions)
 [![NuGet](https://img.shields.io/nuget/v/ConduitR.svg)](https://www.nuget.org/packages/ConduitR)
@@ -38,7 +38,7 @@ dotnet add package ConduitR.Validation.FluentValidation
 dotnet add package ConduitR.AspNetCore
 dotnet add package ConduitR.Processing
 dotnet add package ConduitR.Resilience.Polly
-````
+```
 
 ## Quick start
 
@@ -210,11 +210,11 @@ See `docs/perf-pipeline-cache.md` for details.
 
 ## Samples
 
-* `samples/Samples.WebApi` — minimal API, ProblemDetails, validation, and streaming endpoint.
+* `samples/Samples.WebApi` - minimal API, ProblemDetails, validation, and streaming endpoint.
 
 ## Versioning & Releases
 
-* Semantic versioning. Latest stable: **1.0.2**
+* Semantic versioning. Latest stable: **1.0.4**
 * See GitHub Releases for notes.
 
 ## Contributing
@@ -236,5 +236,5 @@ dotnet run -c Release --project benchmarks/ConduitR.Benchmarks/ConduitR.Benchmar
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
 

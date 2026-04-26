@@ -39,9 +39,9 @@ public static class ServiceCollectionExtensions
                 if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>))
                 {
                     var elem = t.GenericTypeArguments[0];
-                    return sp.GetServices(elem); // IEnumerable<object> of elem
+                    return sp.GetServices(elem).OfType<object>(); // IEnumerable<object> of elem
                 }
-                return sp.GetServices(t);      // IEnumerable<object> (0..n)
+                return sp.GetServices(t).OfType<object>();      // IEnumerable<object> (0..n)
             };
 
             var medOpts = new MediatorOptions

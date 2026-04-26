@@ -23,14 +23,16 @@ internal static class PublishInvoker
         private static Task InvokeCore(TNotification notification, PublishStrategy strategy, CancellationToken ct, Mediator.GetInstances gi)
         {
             // Resolve handlers once
-            var handlersObj = gi(typeof(IEnumerable<INotificationHandler<TNotification>>));
-            var handlers = handlersObj as IEnumerable<INotificationHandler<TNotification>> ?? Array.Empty<INotificationHandler<TNotification>>();
-
-            // Fast path when the container returns a List<T>
-            if (handlers is List<INotificationHandler<TNotification>> list)
+            var handlersObj = gi(typeof(INotificationHandler<TNotification>));
+            var handlers = new List<INotificationHandler<TNotification>>(4);
+            foreach (var obj in handlersObj)
             {
-                if (list.Count == 0) return Task.CompletedTask;
+                if (obj is INotificationHandler<TNotification> handler) handlers.Add(handler);
+            }
 
+            // Execute from a single materialized handler list.
+            if (handlers is { Count: > 0 } list)
+            {
                 return strategy switch
                 {
                     PublishStrategy.Parallel => Parallel(list, notification, ct),
@@ -39,13 +41,7 @@ internal static class PublishInvoker
                 };
             }
 
-            // Fallback for arbitrary IEnumerable<T>
-            return strategy switch
-            {
-                PublishStrategy.Parallel => Parallel(handlers, notification, ct),
-                PublishStrategy.StopOnFirstException => SequentialStrict(handlers, notification, ct),
-                _ => Sequential(handlers, notification, ct),
-            };
+            return Task.CompletedTask;
         }
 
         // Sequential: skip awaits for already-completed tasks
@@ -113,65 +109,17 @@ private static async Task Sequential(IList<INotificationHandler<TNotification>> 
         private static async Task Sequential(IEnumerable<INotificationHandler<TNotification>> handlers, TNotification n, CancellationToken ct)
         {
             List<Exception>? errors = null;
-            switch (handlers.Count())
+            foreach (var handler in handlers)
             {
-                case 0:
-                    break;
-
-                case 1:
+                try
                 {
-                    try
-                    {
-                        var t0 = handlers.First().Handle(n, ct);
-                        if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        (errors ??= new List<Exception>(2)).Add(ex);
-                    }
-                    break;
+                    var task = handler.Handle(n, ct);
+                    if (!task.IsCompletedSuccessfully) await task.ConfigureAwait(false);
                 }
-
-                case 2:
+                catch (Exception ex)
                 {
-                    var first = handlers.First();
-                    var second = handlers.Skip(1).First();
-                    try
-                    {
-                        var t0 = first.Handle(n, ct);
-                        if (!t0.IsCompletedSuccessfully) await t0.ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        (errors ??= new List<Exception>(2)).Add(ex);
-                    }
-
-                    try
-                    {
-                        var t1 = second.Handle(n, ct);
-                        if (!t1.IsCompletedSuccessfully) await t1.ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        (errors ??= new List<Exception>(2)).Add(ex);
-                    }
-                    break;
+                    (errors ??= new List<Exception>(2)).Add(ex);
                 }
-
-                default:
-                    for (int i = 0; i < handlers.Count(); i++)
-                    {
-                        try
-                        {
-                            var t = handlers.ElementAt(i).Handle(n, ct);
-                            if (!t.IsCompletedSuccessfully) await t.ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            (errors ??= new List<Exception>(2)).Add(ex);
-                        }
-                    }
-                    break;
             }
 
             if (errors is { Count: > 0 })
