@@ -18,6 +18,16 @@ This prerelease includes bug fixes and expanded unit test coverage for the Condu
   - Validation behaviors (FluentValidation)
   - Publish strategies (sequential, parallel, stop-on-first-exception)
 
+### Build Fixes
+- Updated C# language version to 'latest' for modern syntax support (global using, file-scoped namespaces)
+- Removed netstandard2.0 target framework to avoid compatibility issues with newer APIs
+- Added compatibility packages for netstandard2.1:
+  - System.Threading.Tasks.Extensions 4.6.0
+  - Microsoft.Bcl.AsyncInterfaces 6.0.0
+- Added System.Diagnostics.DiagnosticSource 8.0.0 for telemetry support
+- Added fallback implementation for IsExternalInit on netstandard builds
+- Updated target frameworks for AspNetCore project to net8.0 and net10.0 only
+
 ### Infrastructure
 - Updated test project references to include ASP.NET Core packages for middleware testing
 - Improved test isolation and error handling
