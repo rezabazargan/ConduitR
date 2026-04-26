@@ -1,7 +1,7 @@
-# ConduitR v1.0.4 Prerelease Notes
+# ConduitR v1.0.4 Release Notes
 
 ## Overview
-This prerelease includes mediator correctness fixes, telemetry accuracy improvements, CI hardening, dependency cleanup, documentation polish, and expanded unit test coverage for the ConduitR mediator library.
+This release includes mediator correctness fixes, telemetry accuracy improvements, CI hardening, dependency cleanup, documentation polish, and expanded unit test coverage for the ConduitR mediator library.
 
 ## Changes Since v1.0.3
 
@@ -47,7 +47,7 @@ This prerelease includes mediator correctness fixes, telemetry accuracy improvem
 None.
 
 ## Known Issues
-- XML documentation warning checks remain suppressed for this prerelease while public API documentation is expanded separately.
+- XML documentation warning checks remain suppressed for this release while public API documentation is expanded separately.
 
 ## Testing
 All 31 unit tests pass successfully.
@@ -58,9 +58,9 @@ dotnet test ConduitR.sln -c Release --verbosity minimal
 ```
 
 ## Installation
-This is a prerelease. To install:
+To install:
 ```
-dotnet add package ConduitR --version 1.0.4-prerelease
+dotnet add package ConduitR --version 1.0.4
 ```
 
 ## Contributors
