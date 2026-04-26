@@ -1,10 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0;netstandard2.1</TargetFrameworks>
     <Description>Core mediator implementation for ConduitR.</Description>
     <IsPackable>true</IsPackable>
     <AssemblyName>ConduitR</AssemblyName>
     <RootNamespace>ConduitR</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="8.0.0" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.0" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ConduitR.Abstractions\ConduitR.Abstractions.csproj" />
   </ItemGroup>
