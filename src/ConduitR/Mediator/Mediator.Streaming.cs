@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using ConduitR.Abstractions;
 
 namespace ConduitR;
@@ -15,10 +16,6 @@ public sealed partial class Mediator
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
 
-        using var activity = ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Stream", ActivityKind.Internal);
-        activity?.SetTag("conduitr.request_type", request.GetType().FullName);
-        activity?.SetTag("conduitr.response_type", typeof(TResponse).FullName);
-
         var key = (request.GetType(), typeof(TResponse));
 
         var delObj = _streamInvokerCache.GetOrAdd(key, static k =>
@@ -29,7 +26,45 @@ public sealed partial class Mediator
         });
 
         var del = (StreamInvoker<TResponse>)delObj;
-        return del(request, cancellationToken, _getInstances);
+        return EnumerateWithTelemetry(
+            del(request, cancellationToken, _getInstances),
+            request.GetType(),
+            typeof(TResponse),
+            _options.EnableTelemetry,
+            cancellationToken);
+    }
+
+    private static async IAsyncEnumerable<TResponse> EnumerateWithTelemetry<TResponse>(
+        IAsyncEnumerable<TResponse> source,
+        Type requestType,
+        Type responseType,
+        bool enableTelemetry,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var activity = enableTelemetry
+            ? ConduitRTelemetry.ActivitySource.StartActivity("Mediator.Stream", ActivityKind.Internal)
+            : null;
+        activity?.SetTag("conduitr.request_type", requestType.FullName);
+        activity?.SetTag("conduitr.response_type", responseType.FullName);
+
+        await using var enumerator = source.WithCancellation(cancellationToken).ConfigureAwait(false).GetAsyncEnumerator();
+        while (true)
+        {
+            bool hasNext;
+            try
+            {
+                hasNext = await enumerator.MoveNextAsync();
+            }
+            catch (Exception ex)
+            {
+                RecordException(activity, ex);
+                throw;
+            }
+
+            if (!hasNext) yield break;
+
+            yield return enumerator.Current;
+        }
     }
 
     private delegate IAsyncEnumerable<TResponse> StreamInvoker<TResponse>(IStreamRequest<TResponse> request, CancellationToken ct, GetInstances getInstances);

@@ -47,6 +47,9 @@ CodeCoverage/
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
+build.log
+BenchmarkDotNet.Artifacts/
+.dotnet-home/
 
 # NUnit
 *.VisualState.xml

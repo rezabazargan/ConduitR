@@ -16,7 +16,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       # Figure out if this is a tag build or a main push, and set VERSION accordingly
       - name: Determine version
