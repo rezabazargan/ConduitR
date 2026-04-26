@@ -1,49 +1,60 @@
-
 # ConduitR
 
-Lightweight, fast, and familiar mediator for .NET - designed to feel natural for MediatR users, with a focus on performance, simplicity, and great DX.
+Lightweight, fast, and familiar mediator primitives for modern .NET applications.
 
 [![Build](https://github.com/rezabazargan/ConduitR/actions/workflows/build.yml/badge.svg)](https://github.com/rezabazargan/ConduitR/actions)
 [![NuGet](https://img.shields.io/nuget/v/ConduitR.svg)](https://www.nuget.org/packages/ConduitR)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Why ConduitR?
+ConduitR gives you a clean way to keep application logic out of controllers, endpoints, background jobs, and UI handlers. Model work as requests, notifications, streams, and pipeline behaviors; ConduitR handles dispatch, composition, and observability.
 
-- **Familiar**: same mental model as MediatR (`IRequest<T>`, `IRequestHandler`, notifications, behaviors).
-- **Fast**: hot path optimized (cached pipelines per request type, low allocations, ValueTask).
-- **Modular**: add-on packages for Validation, AspNetCore helpers, Processing, and Resilience (Polly).
-- **Observable**: built-in `ActivitySource` for OpenTelemetry (`Send`, `Publish`, `Stream`).
+It is intentionally familiar if you have used MediatR, but tuned around a small core, low allocation paths, `ValueTask`, cached generic invokers, and optional packages that you only add when you need them.
+
+## Highlights
+
+- **Familiar request/handler model**: `IRequest<TResponse>`, `IRequestHandler<TRequest,TResponse>`, `INotification`, and pipeline behaviors.
+- **Fast hot paths**: cached send and stream invokers, lean publish execution, minimal reflection after first use.
+- **Async-first**: `ValueTask` for request handling and `IAsyncEnumerable<T>` for streaming.
+- **Modular packages**: dependency injection, validation, ASP.NET Core helpers, processors, and Polly resilience live in focused add-ons.
+- **Production observability**: built-in `ActivitySource` spans for send, publish, and stream operations.
+- **MediatR-friendly migration**: the mental model and naming are deliberately close.
 
 ## Packages
 
-| Package | What it adds |
+| Package | Purpose |
 |---|---|
-| `ConduitR` | Core mediator + telemetry |
-| `ConduitR.Abstractions` | Public contracts (requests, handlers, behaviors, etc.) |
-| `ConduitR.DependencyInjection` | `AddConduit(...)` + assembly scanning |
-| `ConduitR.Validation.FluentValidation` | Validation behavior + DI helpers (optional) |
-| `ConduitR.AspNetCore` | ProblemDetails middleware + Minimal API helpers (optional) |
-| `ConduitR.Processing` | Pre/Post processors as behaviors (optional) |
-| `ConduitR.Resilience.Polly` | Retry / Timeout / CircuitBreaker behaviors (optional) |
+| `ConduitR` | Core mediator implementation and telemetry |
+| `ConduitR.Abstractions` | Public request, handler, notification, stream, and pipeline contracts |
+| `ConduitR.DependencyInjection` | `AddConduit(...)`, assembly scanning, and Microsoft DI integration |
+| `ConduitR.Validation.FluentValidation` | FluentValidation pipeline behavior and registration helpers |
+| `ConduitR.AspNetCore` | ProblemDetails middleware and Minimal API mapping helpers |
+| `ConduitR.Processing` | Request pre-processors and post-processors as pipeline behaviors |
+| `ConduitR.Resilience.Polly` | Retry, timeout, and circuit-breaker pipeline behavior support |
 
-## Install
+## Installation
+
+For most applications, start with the core packages and DI integration:
 
 ```bash
 dotnet add package ConduitR
 dotnet add package ConduitR.Abstractions
 dotnet add package ConduitR.DependencyInjection
+```
 
-# Optional add-ons
+Add optional capabilities as your app grows:
+
+```bash
 dotnet add package ConduitR.Validation.FluentValidation
 dotnet add package ConduitR.AspNetCore
 dotnet add package ConduitR.Processing
 dotnet add package ConduitR.Resilience.Polly
 ```
 
-## Quick start
+## Quick Start
+
+Register ConduitR and scan the assembly that contains your handlers:
 
 ```csharp
-// Program.cs
 using System.Reflection;
 using ConduitR;
 using ConduitR.Abstractions;
@@ -51,124 +62,283 @@ using ConduitR.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddConduit(cfg =>
+builder.Services.AddConduit(options =>
 {
-    cfg.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
-    cfg.PublishStrategy = PublishStrategy.Parallel; // Parallel (default), Sequential, StopOnFirstException
+    options.AddHandlersFromAssemblies(Assembly.GetExecutingAssembly());
+    options.PublishStrategy = PublishStrategy.Parallel;
 });
 
 var app = builder.Build();
-app.Run();
 
-// A request + handler
-public sealed record Ping(string Name) : IRequest<string>;
-
-public sealed class PingHandler : IRequestHandler<Ping, string>
+app.MapGet("/hello/{name}", async (string name, IMediator mediator) =>
 {
-    public ValueTask<string> Handle(Ping request, CancellationToken ct)
-        => ValueTask.FromResult($"Hello, {request.Name}!");
+    var message = await mediator.Send(new SayHello(name));
+    return Results.Ok(new { message });
+});
+
+app.Run();
+```
+
+Define a request and handler:
+
+```csharp
+using ConduitR.Abstractions;
+
+public sealed record SayHello(string Name) : IRequest<string>;
+
+public sealed class SayHelloHandler : IRequestHandler<SayHello, string>
+{
+    public ValueTask<string> Handle(SayHello request, CancellationToken cancellationToken)
+    {
+        return ValueTask.FromResult($"Hello, {request.Name}.");
+    }
 }
 ```
 
-Use the mediator anywhere (DI):
+That is the basic ConduitR loop: endpoints create requests, handlers own the application behavior, and pipeline behaviors can wrap the work without cluttering endpoint code.
+
+## A More Realistic Flow
+
+Requests are a good fit for commands and queries. The endpoint stays thin, while validation, logging, resilience, telemetry, and other cross-cutting behavior can be composed around the handler.
 
 ```csharp
-var result = await mediator.Send(new Ping("ConduitR"));
-```
+public sealed record CreateOrder(string Sku, int Quantity) : IRequest<CreateOrderResult>;
 
-## Notifications (Publish)
+public sealed record CreateOrderResult(Guid OrderId, string Status);
 
-```csharp
-public sealed record UserRegistered(string Email) : INotification;
-
-public sealed class SendWelcomeEmail : INotificationHandler<UserRegistered> { /* ... */ }
-public sealed class AuditLog : INotificationHandler<UserRegistered> { /* ... */ }
-
-// Strategy via AddConduit(...):
-// Parallel (default), Sequential (aggregate errors), StopOnFirstException (short-circuit)
-await mediator.Publish(new UserRegistered("x@y.com"));
-```
-
-## Streaming
-
-```csharp
-public sealed record Ticks(int Count) : IStreamRequest<string>;
-
-public sealed class TicksHandler : IStreamRequestHandler<Ticks, string>
+public sealed class CreateOrderHandler : IRequestHandler<CreateOrder, CreateOrderResult>
 {
-    public async IAsyncEnumerable<string> Handle(Ticks req, [EnumeratorCancellation] CancellationToken ct)
+    private readonly IOrderRepository _orders;
+
+    public CreateOrderHandler(IOrderRepository orders)
     {
-        for (var i = 1; i <= req.Count; i++) { ct.ThrowIfCancellationRequested(); await Task.Delay(100, ct); yield return $"tick-{i}"; }
+        _orders = orders;
+    }
+
+    public async ValueTask<CreateOrderResult> Handle(
+        CreateOrder request,
+        CancellationToken cancellationToken)
+    {
+        var order = new Order(request.Sku, request.Quantity);
+        await _orders.Save(order, cancellationToken);
+
+        return new CreateOrderResult(order.Id, "accepted");
+    }
+}
+```
+
+Use it from Minimal APIs:
+
+```csharp
+app.MapPost("/orders", async (CreateOrder request, IMediator mediator, CancellationToken ct) =>
+{
+    var result = await mediator.Send(request, ct);
+    return Results.Created($"/orders/{result.OrderId}", result);
+});
+```
+
+## Notifications
+
+Notifications let one event fan out to multiple handlers. Use them for side effects such as audit logs, cache invalidation, email, metrics, and integration hooks.
+
+```csharp
+public sealed record OrderCreated(Guid OrderId, string Sku) : INotification;
+
+public sealed class WriteAuditLog : INotificationHandler<OrderCreated>
+{
+    public Task Handle(OrderCreated notification, CancellationToken cancellationToken)
+    {
+        // Persist an audit record.
+        return Task.CompletedTask;
     }
 }
 
-// Consume
-await foreach (var s in mediator.CreateStream(new Ticks(3))) Console.WriteLine(s);
+public sealed class SendOrderConfirmation : INotificationHandler<OrderCreated>
+{
+    public Task Handle(OrderCreated notification, CancellationToken cancellationToken)
+    {
+        // Queue an email or integration message.
+        return Task.CompletedTask;
+    }
+}
+
+await mediator.Publish(new OrderCreated(order.Id, order.Sku), cancellationToken);
 ```
 
-## Validation (FluentValidation)
+Publish behavior is configurable:
+
+| Strategy | Behavior |
+|---|---|
+| `Parallel` | Runs handlers concurrently. This is the default. |
+| `Sequential` | Runs all handlers in order and aggregates handler exceptions. |
+| `StopOnFirstException` | Runs handlers in order and stops at the first failure. |
+
+## Streaming
+
+Streaming requests are useful for progress updates, data feeds, incremental exports, long-running reads, and server-sent events.
 
 ```csharp
-using ConduitR.Validation.FluentValidation;
+using System.Runtime.CompilerServices;
 
-builder.Services.AddConduitValidation(typeof(Program).Assembly);
+public sealed record WatchOrder(Guid OrderId) : IStreamRequest<string>;
 
-public sealed record CreateOrder(string? Sku, int Qty) : IRequest<string>;
-public sealed class CreateOrderValidator : AbstractValidator<CreateOrder>
+public sealed class WatchOrderHandler : IStreamRequestHandler<WatchOrder, string>
 {
-    public CreateOrderValidator() { RuleFor(x => x.Sku).NotEmpty(); RuleFor(x => x.Qty).GreaterThan(0); }
+    public async IAsyncEnumerable<string> Handle(
+        WatchOrder request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        yield return "accepted";
+
+        await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+        yield return "packed";
+
+        await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+        yield return "shipped";
+    }
 }
 ```
 
-## AspNetCore helpers
+Consume the stream:
+
+```csharp
+await foreach (var status in mediator.CreateStream(new WatchOrder(orderId), cancellationToken))
+{
+    Console.WriteLine(status);
+}
+```
+
+## Pipeline Behaviors
+
+Pipeline behaviors wrap request handling. They are ideal for logging, validation, metrics, authorization, caching, resilience, and transactions.
+
+```csharp
+public sealed class LoggingBehavior<TRequest, TResponse>
+    : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : IRequest<TResponse>
+{
+    private readonly ILogger<LoggingBehavior<TRequest, TResponse>> _logger;
+
+    public LoggingBehavior(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
+    {
+        _logger = logger;
+    }
+
+    public async ValueTask<TResponse> Handle(
+        TRequest request,
+        CancellationToken cancellationToken,
+        RequestHandlerDelegate<TResponse> next)
+    {
+        _logger.LogInformation("Handling {RequestType}", typeof(TRequest).Name);
+
+        var response = await next();
+
+        _logger.LogInformation("Handled {RequestType}", typeof(TRequest).Name);
+        return response;
+    }
+}
+```
+
+Register open-generic behaviors:
+
+```csharp
+builder.Services.AddConduit(options =>
+{
+    options.AddHandlersFromAssemblies(typeof(Program).Assembly);
+    options.AddBehavior(typeof(LoggingBehavior<,>));
+});
+```
+
+## Validation
+
+Add FluentValidation as a request pipeline behavior:
+
+```csharp
+using ConduitR.Validation.FluentValidation;
+using FluentValidation;
+
+builder.Services.AddConduitValidation(typeof(Program).Assembly);
+
+public sealed class CreateOrderValidator : AbstractValidator<CreateOrder>
+{
+    public CreateOrderValidator()
+    {
+        RuleFor(x => x.Sku).NotEmpty();
+        RuleFor(x => x.Quantity).GreaterThan(0);
+    }
+}
+```
+
+Validation failures are raised before the handler runs.
+
+## ASP.NET Core
+
+The ASP.NET Core add-on includes ProblemDetails support and Minimal API helper methods.
 
 ```csharp
 using ConduitR.AspNetCore;
 
-// ProblemDetails (400s for validation, 5xx handled)
 builder.Services.AddConduitProblemDetails();
 
 var app = builder.Build();
-app.UseConduitProblemDetails();
 
-// Minimal API mapper
-app.MapMediatorPost<CreateOrder, string>("/orders");
+app.UseConduitProblemDetails();
+app.MapMediatorPost<CreateOrder, CreateOrderResult>("/orders");
 ```
 
-## Pre/Post processors
+This keeps endpoints small while preserving standard HTTP error responses.
+
+## Pre/Post Processors
+
+Use processors when you want simple before/after hooks without writing a full custom behavior.
 
 ```csharp
 using ConduitR.Processing;
 
 builder.Services.AddConduitProcessing(typeof(Program).Assembly);
 
-public sealed class AuditPre : IRequestPreProcessor<CreateOrder>
+public sealed class AuditCreateOrder : IRequestPreProcessor<CreateOrder>
 {
-    public Task Process(CreateOrder req, CancellationToken ct) { /* audit */ return Task.CompletedTask; }
+    public Task Process(CreateOrder request, CancellationToken cancellationToken)
+    {
+        // Record intent before the handler runs.
+        return Task.CompletedTask;
+    }
 }
 
-public sealed class MetricsPost : IRequestPostProcessor<CreateOrder, string>
+public sealed class MeasureCreateOrder : IRequestPostProcessor<CreateOrder, CreateOrderResult>
 {
-    public Task Process(CreateOrder req, string res, CancellationToken ct) { /* metrics */ return Task.CompletedTask; }
+    public Task Process(
+        CreateOrder request,
+        CreateOrderResult response,
+        CancellationToken cancellationToken)
+    {
+        // Record outcome after the handler succeeds.
+        return Task.CompletedTask;
+    }
 }
 ```
 
-## Resilience (Polly)
+## Resilience
+
+Add Polly-backed retry, timeout, and circuit-breaker behavior around request handlers:
 
 ```csharp
 using ConduitR.Resilience.Polly;
 
-builder.Services.AddConduitResiliencePolly(o =>
+builder.Services.AddConduitResiliencePolly(options =>
 {
-    o.RetryCount = 3;                    // exponential backoff
-    o.Timeout = TimeSpan.FromSeconds(1); // per-attempt timeout (pessimistic)
-    o.CircuitBreakerEnabled = true;
-    o.CircuitBreakerFailures = 5;
-    o.CircuitBreakerDuration = TimeSpan.FromSeconds(30);
+    options.RetryCount = 3;
+    options.Timeout = TimeSpan.FromSeconds(1);
+    options.CircuitBreakerEnabled = true;
+    options.CircuitBreakerFailures = 5;
+    options.CircuitBreakerDuration = TimeSpan.FromSeconds(30);
 });
 ```
 
-## Telemetry (OpenTelemetry)
+## Telemetry
+
+ConduitR emits `ActivitySource` spans that plug into OpenTelemetry:
 
 ```csharp
 using ConduitR;
@@ -176,51 +346,83 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(r => r.AddService("YourApp"))
-    .WithTracing(b => b
-        .AddSource(ConduitRTelemetry.ActivitySourceName) // "ConduitR"
+    .ConfigureResource(resource => resource.AddService("Orders.Api"))
+    .WithTracing(tracing => tracing
+        .AddSource(ConduitRTelemetry.ActivitySourceName)
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddOtlpExporter());
 ```
 
-Spans: `Mediator.Send`, `Mediator.Publish`, `Mediator.Stream` (+ tags & exception events).
+Emitted operations:
 
-## Performance
+| Operation | Description |
+|---|---|
+| `Mediator.Send` | Request/response handling |
+| `Mediator.Publish` | Notification fan-out |
+| `Mediator.Stream` | Streaming request enumeration |
 
-* Cached Send/Stream pipelines per `(TRequest,TResponse)` (no per-call reflection/delegate build).
-* Lean publish path, minimal allocations.
-* `ValueTask` in core, one-type-per-file organization.
+Spans include request/response type tags, publish strategy information, handler counts where applicable, and exception events when failures occur.
 
-See `docs/perf-pipeline-cache.md` for details.
+Telemetry can be disabled for low-level benchmarks:
 
-## Migrate from MediatR
+```csharp
+builder.Services.AddConduit(options =>
+{
+    options.AddHandlersFromAssemblies(typeof(Program).Assembly);
+    options.EnableTelemetry = false;
+});
+```
 
-| MediatR                                    | ConduitR                                 |
-| ------------------------------------------ | ---------------------------------------- |
-| `IMediator.Send`, `.Publish`               | same                                     |
-| `IRequest<TResponse>`                      | same                                     |
-| `IRequestHandler<TReq,TRes>`               | same                                     |
-| `INotification`, `INotificationHandler<T>` | same                                     |
-| Pipeline behaviors                         | same (`IPipelineBehavior<TReq,TRes>`)    |
-| Pre/Post processors                        | via **ConduitR.Processing** (behaviors)  |
-| Validation (FluentValidation)              | **ConduitR.Validation.FluentValidation** |
-| ASP.NET Core helpers                       | **ConduitR.AspNetCore**                  |
-| Resilience                                 | **ConduitR.Resilience.Polly**            |
+## Performance Notes
 
-## Samples
+ConduitR is designed to keep the common path direct:
 
-* `samples/Samples.WebApi` - minimal API, ProblemDetails, validation, and streaming endpoint.
+- Send and stream invokers are cached per closed generic request/response pair.
+- Notification publish uses a cached generic invoker and avoids repeated enumeration.
+- Request handlers return `ValueTask<T>` to reduce allocations for synchronous completions.
+- Optional features live in separate packages, keeping the core small.
 
-## Versioning & Releases
+See [docs/perf-pipeline-cache.md](docs/perf-pipeline-cache.md) and the `benchmarks/` folder for deeper performance notes.
 
-* Semantic versioning. Latest stable: **1.0.4**
-* See GitHub Releases for notes.
+## Migrating From MediatR
 
-## Contributing
+| MediatR | ConduitR |
+|---|---|
+| `IMediator.Send(...)` | `IMediator.Send(...)` |
+| `IMediator.Publish(...)` | `IMediator.Publish(...)` |
+| `IRequest<TResponse>` | `IRequest<TResponse>` |
+| `IRequestHandler<TRequest,TResponse>` | `IRequestHandler<TRequest,TResponse>` |
+| `INotification` | `INotification` |
+| `INotificationHandler<TNotification>` | `INotificationHandler<TNotification>` |
+| `IPipelineBehavior<TRequest,TResponse>` | `IPipelineBehavior<TRequest,TResponse>` |
+| Pre/Post processors | `ConduitR.Processing` |
+| FluentValidation integration | `ConduitR.Validation.FluentValidation` |
+| ASP.NET Core helpers | `ConduitR.AspNetCore` |
+| Resilience behavior | `ConduitR.Resilience.Polly` |
 
-PRs welcome!
-Dev loop:
+Most request, handler, notification, and behavior concepts map directly. The main difference is that ConduitR keeps optional integrations in separate packages.
+
+## Samples And Docs
+
+- [samples/Samples.WebApi](samples/Samples.WebApi) shows Minimal APIs, validation, ProblemDetails, and streaming.
+- [docs/getting-started.md](docs/getting-started.md) covers first steps.
+- [docs/architecture.md](docs/architecture.md) explains the internal shape.
+- [docs/telemetry.md](docs/telemetry.md) covers OpenTelemetry integration.
+- [docs/resilience-polly.md](docs/resilience-polly.md) covers Polly configuration.
+- [docs/release-1.0.4.md](docs/release-1.0.4.md) contains the latest release notes.
+
+## Versioning And Releases
+
+ConduitR follows semantic versioning.
+
+- Latest stable: **1.0.4**
+- Tags like `v1.0.4` publish stable NuGet packages.
+- Pushes to `main` publish prerelease packages such as `1.0.4-pre.<date>.<sha>`.
+
+See [GitHub Releases](https://github.com/rezabazargan/ConduitR/releases) and [NuGet](https://www.nuget.org/packages/ConduitR) for published versions.
+
+## Development
 
 ```bash
 dotnet restore
@@ -228,13 +430,16 @@ dotnet build
 dotnet test
 ```
 
-(Optional) microbenchmarks:
+Run benchmarks:
 
 ```bash
 dotnet run -c Release --project benchmarks/ConduitR.Benchmarks/ConduitR.Benchmarks.csproj
 ```
 
+## Contributing
+
+Issues, suggestions, and pull requests are welcome. Keep changes focused, include tests for behavior changes, and update docs when public APIs or release behavior changes.
+
 ## License
 
-MIT - see [LICENSE](LICENSE).
-
+MIT. See [LICENSE](LICENSE).
