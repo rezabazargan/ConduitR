@@ -32,7 +32,7 @@ jobs:
             echo "VERSION=$VER" >> $GITHUB_ENV
           elif [[ "$GITHUB_REF" == refs/heads/main ]]; then
             # Prerelease from main
-            BASE="1.0.4"   # <-- bump when you start the next prerelease train
+            BASE="1.0.5"   # <-- bump when you start the next prerelease train
             DATE=$(date -u +%Y%m%dT%H%M)
             SHA=$(git rev-parse --short "$GITHUB_SHA")
             echo "IS_MAIN=true" >> $GITHUB_ENV
@@ -86,6 +86,12 @@ jobs:
           fi
           if [ -f src/ConduitR.Resilience.Polly/ConduitR.Resilience.Polly.csproj ]; then
             dotnet pack src/ConduitR.Resilience.Polly/ConduitR.Resilience.Polly.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          fi
+          if [ -f src/ConduitR.Visualizer.Core/ConduitR.Visualizer.Core.csproj ]; then
+            dotnet pack src/ConduitR.Visualizer.Core/ConduitR.Visualizer.Core.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
+          fi
+          if [ -f src/ConduitR.Visualizer.Cli/ConduitR.Visualizer.Cli.csproj ]; then
+            dotnet pack src/ConduitR.Visualizer.Cli/ConduitR.Visualizer.Cli.csproj -c Release -o artifacts -p:PackageVersion=${VERSION} -p:ContinuousIntegrationBuild=true
           fi
 
       - name: Publish to NuGet
