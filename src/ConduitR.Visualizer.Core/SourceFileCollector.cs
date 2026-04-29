@@ -51,7 +51,7 @@ internal static class SourceFileCollector
             var rawProjectPath = parts[1].Trim().Trim('"');
             if (!rawProjectPath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)) continue;
 
-            projects.Add(Path.GetFullPath(Path.Combine(solutionDirectory, rawProjectPath)));
+            projects.Add(ResolveRelativePath(solutionDirectory, rawProjectPath));
         }
 
         return await ExpandProjectReferencesAsync(projects, cancellationToken).ConfigureAwait(false);
@@ -95,8 +95,17 @@ internal static class SourceFileCollector
             .Descendants("ProjectReference")
             .Select(element => element.Attribute("Include")?.Value)
             .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => Path.GetFullPath(Path.Combine(projectDirectory, value!)))
+            .Select(value => ResolveRelativePath(projectDirectory, value!))
             .ToArray();
+    }
+
+    private static string ResolveRelativePath(string baseDirectory, string relativePath)
+    {
+        var normalizedPath = relativePath
+            .Replace('\\', Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+
+        return Path.GetFullPath(Path.Combine(baseDirectory, normalizedPath));
     }
 
     private static bool IsGeneratedOrBuildOutput(string sourcePath)
