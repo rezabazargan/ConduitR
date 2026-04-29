@@ -64,6 +64,78 @@ public sealed class VisualizerTests
     }
 
     [Fact]
+    public async Task Scanner_resolves_project_references_with_backslash_paths()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "conduitr-visualizer-tests", Guid.NewGuid().ToString("N"));
+        var appDirectory = Path.Combine(root, "App");
+        var libDirectory = Path.Combine(root, "Lib");
+        Directory.CreateDirectory(appDirectory);
+        Directory.CreateDirectory(libDirectory);
+
+        try
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(appDirectory, "App.csproj"),
+                """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <ItemGroup>
+                    <ProjectReference Include="..\Lib\Lib.csproj" />
+                  </ItemGroup>
+                </Project>
+                """);
+
+            await File.WriteAllTextAsync(
+                Path.Combine(appDirectory, "Request.cs"),
+                """
+                using ConduitR.Abstractions;
+
+                public sealed record CreateOrder : IRequest<CreateOrderResult>;
+                public sealed record CreateOrderResult;
+                public sealed class CreateOrderHandler : IRequestHandler<CreateOrder, CreateOrderResult>
+                {
+                    public ValueTask<CreateOrderResult> Handle(CreateOrder request, CancellationToken cancellationToken)
+                    {
+                        return ValueTask.FromResult(new CreateOrderResult());
+                    }
+                }
+                """);
+
+            await File.WriteAllTextAsync(
+                Path.Combine(libDirectory, "Lib.csproj"),
+                """
+                <Project Sdk="Microsoft.NET.Sdk" />
+                """);
+
+            await File.WriteAllTextAsync(
+                Path.Combine(libDirectory, "Behavior.cs"),
+                """
+                using ConduitR.Abstractions;
+
+                public sealed class TestBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+                    where TRequest : IRequest<TResponse>
+                {
+                    public ValueTask<TResponse> Handle(TRequest request, CancellationToken cancellationToken, RequestHandlerDelegate<TResponse> next)
+                    {
+                        return next();
+                    }
+                }
+                """);
+
+            var scanner = new ConduitSolutionScanner();
+            var flow = await scanner.ScanAsync(Path.Combine(appDirectory, "App.csproj"));
+
+            Assert.Contains(flow.Diagnostics, diagnostic => diagnostic.Message == "Scanned 2 C# source files.");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Report_writer_creates_mermaid_diagram_artifacts()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), "conduitr-visualizer-tests", Guid.NewGuid().ToString("N"));
