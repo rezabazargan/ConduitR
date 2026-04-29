@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks></TargetFrameworks>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Description>Command-line Visualizer for ConduitR mediator flows.</Description>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>conduitr</ToolCommandName>
+    <AssemblyName>ConduitR.Visualizer.Cli</AssemblyName>
+    <RootNamespace>ConduitR.Visualizer.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ConduitR.Visualizer.Core\ConduitR.Visualizer.Core.csproj" />
+  </ItemGroup>
+</Project>

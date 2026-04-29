@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\src\ConduitR.Resilience.Polly\ConduitR.Resilience.Polly.csproj" />
     <ProjectReference Include="..\..\src\ConduitR.AspNetCore\ConduitR.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\ConduitR.Validation.FluentValidation\ConduitR.Validation.FluentValidation.csproj" />
+    <ProjectReference Include="..\..\src\ConduitR.Visualizer.Core\ConduitR.Visualizer.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
