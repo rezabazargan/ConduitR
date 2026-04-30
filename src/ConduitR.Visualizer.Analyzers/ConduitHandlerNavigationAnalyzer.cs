@@ -16,7 +16,7 @@ public sealed class ConduitHandlerNavigationAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor HandlerResolved = new(
         DiagnosticId,
         "ConduitR handler resolved",
-        "ConduitR {0} '{1}' is handled by '{2}'",
+        "ConduitR {0} '{1}' is handled by '{2}' at {3}",
         "ConduitR.Visualizer",
         DiagnosticSeverity.Info,
         isEnabledByDefault: true,
@@ -70,12 +70,30 @@ public sealed class ConduitHandlerNavigationAnalyzer : DiagnosticAnalyzer
         }
 
         var kind = isStream ? "stream request" : "request";
+        var handlerLocation = handlerType.Locations.FirstOrDefault(location => location.IsInSource);
+        var additionalLocations = handlerLocation is null
+            ? ImmutableArray<Location>.Empty
+            : ImmutableArray.Create(handlerLocation);
+        var properties = ImmutableDictionary<string, string?>.Empty
+            .Add("ConduitR.HandlerName", handlerType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat))
+            .Add("ConduitR.HandlerFullName", handlerType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        if (handlerLocation is not null)
+        {
+            var lineSpan = handlerLocation.GetLineSpan();
+            properties = properties
+                .Add("ConduitR.HandlerFilePath", lineSpan.Path)
+                .Add("ConduitR.HandlerLine", (lineSpan.StartLinePosition.Line + 1).ToString());
+        }
+
         var diagnostic = Diagnostic.Create(
             HandlerResolved,
             invocation.Syntax.GetLocation(),
+            additionalLocations,
+            properties,
             kind,
             requestType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
-            handlerType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+            handlerType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+            FormatLocation(handlerLocation));
 
         context.ReportDiagnostic(diagnostic);
     }
@@ -88,6 +106,18 @@ public sealed class ConduitHandlerNavigationAnalyzer : DiagnosticAnalyzer
         }
 
         return operation;
+    }
+
+    private static string FormatLocation(Location? location)
+    {
+        if (location is null || !location.IsInSource)
+        {
+            return "source unavailable";
+        }
+
+        var lineSpan = location.GetLineSpan();
+        var fileName = System.IO.Path.GetFileName(lineSpan.Path);
+        return $"{fileName}:{lineSpan.StartLinePosition.Line + 1}";
     }
 
     private sealed class HandlerIndex

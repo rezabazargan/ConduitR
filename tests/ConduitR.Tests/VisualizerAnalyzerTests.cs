@@ -40,6 +40,10 @@ public sealed class VisualizerAnalyzerTests
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ConduitHandlerNavigationAnalyzer.DiagnosticId, diagnostic.Id);
         Assert.Contains("CreateOrderHandler", diagnostic.GetMessage());
+        Assert.Contains("Test0.cs", diagnostic.GetMessage());
+        Assert.Single(diagnostic.AdditionalLocations);
+        Assert.True(diagnostic.Properties.ContainsKey("ConduitR.HandlerFilePath"));
+        Assert.True(diagnostic.Properties.ContainsKey("ConduitR.HandlerLine"));
     }
 
     [Fact]
@@ -77,11 +81,16 @@ public sealed class VisualizerAnalyzerTests
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ConduitHandlerNavigationAnalyzer.DiagnosticId, diagnostic.Id);
         Assert.Contains("WatchOrdersHandler", diagnostic.GetMessage());
+        Assert.Contains("Test0.cs", diagnostic.GetMessage());
+        Assert.Single(diagnostic.AdditionalLocations);
     }
 
     private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerAsync(string source)
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest));
+        var syntaxTree = CSharpSyntaxTree.ParseText(
+            source,
+            new CSharpParseOptions(LanguageVersion.Latest),
+            path: "Test0.cs");
         var trustedPlatformAssemblies = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")) ?? string.Empty;
         var references = trustedPlatformAssemblies
             .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
