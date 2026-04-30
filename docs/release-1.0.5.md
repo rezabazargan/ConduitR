@@ -31,7 +31,8 @@ Planned projects:
 - `ConduitR.Visualizer.Analyzers`
   - Roslyn analyzer package for Visual Studio and IDE hosts
   - design-time handler discovery for `Send(...)` and `CreateStream(...)`
-  - first step toward hover summaries and Go to Handler
+  - informational hover diagnostics for resolved handlers
+  - lightbulb code-fix action for Go to Handler without requiring a VSIX extension
 
 Planned public install command:
 
@@ -284,6 +285,32 @@ Initial behavior:
 - Reports the handler resolved for `mediator.Send(new SomeRequest(...))`.
 - Reports the stream handler resolved for `mediator.CreateStream(new SomeStream(...))`.
 - Emits informational diagnostics in the IDE without changing runtime behavior.
+- Provides a `Go to ConduitR handler 'HandlerName'` lightbulb action when the resolved handler is in the current solution.
+
+## Package Documentation And NuGet Metadata
+
+The release should include package-specific README content so GitHub and NuGet both explain the Visualizer package split clearly:
+
+- `ConduitR.Visualizer.Core`
+  - package README: `src/ConduitR.Visualizer.Core/README.md`
+  - explains the scanner, flow model, generated artifacts, and static-analysis limits
+  - NuGet description and tags identify it as the reusable analysis engine
+- `ConduitR.Visualizer.Cli`
+  - package README: `src/ConduitR.Visualizer.Cli/README.md`
+  - explains global/local tool installation, `conduitr visualize`, output files, and CI use
+  - NuGet description and tags identify it as the command-line .NET tool
+- `ConduitR.Visualizer.Analyzers`
+  - package README: `src/ConduitR.Visualizer.Analyzers/README.md`
+  - explains Visual Studio handler hints, screenshots, diagnostics, and the lightbulb navigation action
+  - NuGet description and tags identify it as the Roslyn analyzer/code-fix package
+
+The repository README should present Visualizer as a first-class feature and link to all three package README files.
+
+The package pipeline should pack all Visualizer packages on prerelease and stable releases:
+
+- `ConduitR.Visualizer.Core`
+- `ConduitR.Visualizer.Cli`
+- `ConduitR.Visualizer.Analyzers`
 
 ## Out Of Scope For v1.0.5
 These are valuable, but should not block the first Visualizer release:

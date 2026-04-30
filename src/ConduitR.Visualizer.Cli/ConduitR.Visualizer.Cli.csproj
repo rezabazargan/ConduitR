@@ -3,7 +3,9 @@
     <TargetFrameworks></TargetFrameworks>
     <TargetFramework>net8.0</TargetFramework>
     <OutputType>Exe</OutputType>
-    <Description>Command-line Visualizer for ConduitR mediator flows.</Description>
+    <Description>.NET tool that generates Markdown, JSON, and Mermaid reports for ConduitR mediator flows, handlers, pipeline behaviors, dependencies, and call sites.</Description>
+    <PackageTags>ConduitR;mediator;visualizer;dotnet-tool;cli;architecture;mermaid</PackageTags>
+    <PackageReleaseNotes>ConduitR Visualizer CLI adds the 'conduitr visualize' command for generating architecture reports from ConduitR solutions and projects.</PackageReleaseNotes>
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>conduitr</ToolCommandName>
@@ -12,5 +14,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\ConduitR.Visualizer.Core\ConduitR.Visualizer.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

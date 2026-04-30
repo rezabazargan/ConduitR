@@ -2,7 +2,9 @@
   <PropertyGroup>
     <TargetFrameworks></TargetFrameworks>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Description>Visual Studio and Roslyn diagnostics for ConduitR mediator flows.</Description>
+    <Description>Roslyn analyzer and code-fix package for ConduitR design-time handler discovery in Visual Studio and supported IDE hosts.</Description>
+    <PackageTags>ConduitR;mediator;visualizer;roslyn;analyzer;codefix;visual-studio</PackageTags>
+    <PackageReleaseNotes>ConduitR Visualizer Analyzers adds Info diagnostics for Send/CreateStream handler discovery and a lightbulb action to navigate to the resolved handler.</PackageReleaseNotes>
     <IsPackable>true</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <DevelopmentDependency>true</DevelopmentDependency>
@@ -15,8 +17,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.10.0" PrivateAssets="all" />
+    <PackageReference Include="System.Composition.AttributedModel" Version="8.0.0" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

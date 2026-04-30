@@ -30,9 +30,9 @@ It is intentionally familiar if you have used MediatR, but tuned around a small 
 | `ConduitR.AspNetCore` | ProblemDetails middleware and Minimal API mapping helpers |
 | `ConduitR.Processing` | Request pre-processors and post-processors as pipeline behaviors |
 | `ConduitR.Resilience.Polly` | Retry, timeout, and circuit-breaker pipeline behavior support |
-| `ConduitR.Visualizer.Cli` | .NET tool that generates Markdown, JSON, and Mermaid mediator flow reports |
-| `ConduitR.Visualizer.Core` | Reusable analysis/reporting engine behind Visualizer tooling |
-| `ConduitR.Visualizer.Analyzers` | Visual Studio/Roslyn diagnostics for handler discovery at design time |
+| [`ConduitR.Visualizer.Cli`](src/ConduitR.Visualizer.Cli/README.md) | .NET tool that generates Markdown, JSON, and Mermaid mediator flow reports |
+| [`ConduitR.Visualizer.Core`](src/ConduitR.Visualizer.Core/README.md) | Reusable analysis/reporting engine behind Visualizer tooling |
+| [`ConduitR.Visualizer.Analyzers`](src/ConduitR.Visualizer.Analyzers/README.md) | Visual Studio/Roslyn diagnostics and handler navigation lightbulbs |
 
 ## Installation
 
@@ -52,33 +52,6 @@ dotnet add package ConduitR.AspNetCore
 dotnet add package ConduitR.Processing
 dotnet add package ConduitR.Resilience.Polly
 ```
-
-## Visualizer And Visual Studio Tooling
-
-Install the Visualizer CLI when you want a generated architecture report for a solution or project:
-
-```bash
-dotnet tool install --global ConduitR.Visualizer.Cli --prerelease
-conduitr visualize ./MyApp.sln --output ./artifacts/conduitr
-```
-
-The command writes:
-
-```text
-artifacts/conduitr/
-  flows.md
-  flows.json
-  diagrams/
-    *.mmd
-```
-
-Add the analyzer package to a project when you want Visual Studio/Roslyn design-time hints:
-
-```bash
-dotnet add package ConduitR.Visualizer.Analyzers --prerelease
-```
-
-The first analyzer reports which handler receives a `mediator.Send(...)` or `mediator.CreateStream(...)` request. This is the first step toward richer IDE support such as hover summaries and Go to Handler.
 
 ## Quick Start
 
@@ -433,6 +406,50 @@ See [docs/perf-pipeline-cache.md](docs/perf-pipeline-cache.md) and the `benchmar
 
 Most request, handler, notification, and behavior concepts map directly. The main difference is that ConduitR keeps optional integrations in separate packages.
 
+## Visualizer And Visual Studio Tooling
+
+ConduitR Visualizer is the design-time tooling layer for mediator-heavy applications. It helps you move from "where does this `Send` go?" to a concrete handler, pipeline, dependency list, and generated architecture artifact.
+
+Use the tooling in two complementary ways:
+
+- **CLI reports** for architecture reviews, onboarding, CI artifacts, and pull request discussion.
+- **Visual Studio analyzer hints** for live handler discovery while reading endpoint or application code.
+
+Install the Visualizer CLI when you want a generated architecture report for a solution or project:
+
+```bash
+dotnet tool install --global ConduitR.Visualizer.Cli --prerelease
+conduitr visualize ./MyApp.sln --output ./artifacts/conduitr
+```
+
+The command writes:
+
+```text
+artifacts/conduitr/
+  flows.md
+  flows.json
+  diagrams/
+    *.mmd
+```
+
+Add the analyzer package to a project when you want Visual Studio/Roslyn design-time hints:
+
+```bash
+dotnet add package ConduitR.Visualizer.Analyzers --prerelease
+```
+
+The analyzer reports which handler receives a `mediator.Send(...)` or `mediator.CreateStream(...)` request, and adds a lightbulb action that navigates to the handler without requiring a VSIX extension.
+
+![ConduitR Send handler hint](docs/images/Send.png)
+
+![ConduitR CreateStream handler hint](docs/images/CreateStream.png)
+
+Visualizer package details:
+
+- [ConduitR.Visualizer.Cli](src/ConduitR.Visualizer.Cli/README.md): install and run the `conduitr visualize` .NET tool.
+- [ConduitR.Visualizer.Core](src/ConduitR.Visualizer.Core/README.md): reuse the scanner and report writer from your own tooling.
+- [ConduitR.Visualizer.Analyzers](src/ConduitR.Visualizer.Analyzers/README.md): add design-time handler hints and Go to Handler lightbulbs to projects.
+
 ## Samples And Docs
 
 - [samples/Samples.WebApi](samples/Samples.WebApi) shows Minimal APIs, validation, ProblemDetails, and streaming.
@@ -440,13 +457,18 @@ Most request, handler, notification, and behavior concepts map directly. The mai
 - [docs/architecture.md](docs/architecture.md) explains the internal shape.
 - [docs/telemetry.md](docs/telemetry.md) covers OpenTelemetry integration.
 - [docs/resilience-polly.md](docs/resilience-polly.md) covers Polly configuration.
-- [docs/release-1.0.4.md](docs/release-1.0.4.md) contains the latest release notes.
+- [src/ConduitR.Visualizer.Cli](src/ConduitR.Visualizer.Cli/README.md) documents the Visualizer CLI.
+- [src/ConduitR.Visualizer.Core](src/ConduitR.Visualizer.Core/README.md) documents the Visualizer engine.
+- [src/ConduitR.Visualizer.Analyzers](src/ConduitR.Visualizer.Analyzers/README.md) documents Visual Studio/Roslyn handler hints.
+- [docs/release-1.0.5.md](docs/release-1.0.5.md) contains the next Visualizer release notes.
+- [docs/release-1.0.4.md](docs/release-1.0.4.md) contains the latest stable release notes.
 
 ## Versioning And Releases
 
 ConduitR follows semantic versioning.
 
 - Latest stable: **1.0.4**
+- Next release train: **1.0.5** with ConduitR Visualizer packages.
 - Tags like `v1.0.4` publish stable NuGet packages.
 - Pushes to `main` publish prerelease packages such as `1.0.4-pre.<date>.<sha>`.
 
