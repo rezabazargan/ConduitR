@@ -30,6 +30,9 @@ It is intentionally familiar if you have used MediatR, but tuned around a small 
 | `ConduitR.AspNetCore` | ProblemDetails middleware and Minimal API mapping helpers |
 | `ConduitR.Processing` | Request pre-processors and post-processors as pipeline behaviors |
 | `ConduitR.Resilience.Polly` | Retry, timeout, and circuit-breaker pipeline behavior support |
+| `ConduitR.Visualizer.Cli` | .NET tool that generates Markdown, JSON, and Mermaid mediator flow reports |
+| `ConduitR.Visualizer.Core` | Reusable analysis/reporting engine behind Visualizer tooling |
+| `ConduitR.Visualizer.Analyzers` | Visual Studio/Roslyn diagnostics for handler discovery at design time |
 
 ## Installation
 
@@ -49,6 +52,33 @@ dotnet add package ConduitR.AspNetCore
 dotnet add package ConduitR.Processing
 dotnet add package ConduitR.Resilience.Polly
 ```
+
+## Visualizer And Visual Studio Tooling
+
+Install the Visualizer CLI when you want a generated architecture report for a solution or project:
+
+```bash
+dotnet tool install --global ConduitR.Visualizer.Cli --prerelease
+conduitr visualize ./MyApp.sln --output ./artifacts/conduitr
+```
+
+The command writes:
+
+```text
+artifacts/conduitr/
+  flows.md
+  flows.json
+  diagrams/
+    *.mmd
+```
+
+Add the analyzer package to a project when you want Visual Studio/Roslyn design-time hints:
+
+```bash
+dotnet add package ConduitR.Visualizer.Analyzers --prerelease
+```
+
+The first analyzer reports which handler receives a `mediator.Send(...)` or `mediator.CreateStream(...)` request. This is the first step toward richer IDE support such as hover summaries and Go to Handler.
 
 ## Quick Start
 

@@ -28,6 +28,10 @@ Planned projects:
   - .NET tool package
   - command-line entry point
   - output and CI-friendly options
+- `ConduitR.Visualizer.Analyzers`
+  - Roslyn analyzer package for Visual Studio and IDE hosts
+  - design-time handler discovery for `Send(...)` and `CreateStream(...)`
+  - first step toward hover summaries and Go to Handler
 
 Planned public install command:
 
@@ -266,6 +270,21 @@ Expected command:
 conduitr visualize ./MyApp.sln
 ```
 
+### `ConduitR.Visualizer.Analyzers`
+Roslyn analyzer package for Visual Studio and compiler-hosted design-time diagnostics.
+
+Expected install:
+
+```bash
+dotnet add package ConduitR.Visualizer.Analyzers --version 1.0.5
+```
+
+Initial behavior:
+
+- Reports the handler resolved for `mediator.Send(new SomeRequest(...))`.
+- Reports the stream handler resolved for `mediator.CreateStream(new SomeStream(...))`.
+- Emits informational diagnostics in the IDE without changing runtime behavior.
+
 ## Out Of Scope For v1.0.5
 These are valuable, but should not block the first Visualizer release:
 
@@ -285,6 +304,7 @@ The first release should prove the analysis engine and generated artifacts. IDE 
 
 - `ConduitR.Visualizer.Core` project exists.
 - `ConduitR.Visualizer.Cli` project exists and packs as a .NET tool.
+- `ConduitR.Visualizer.Analyzers` project exists and packs as a Roslyn analyzer package.
 - CLI can scan `ConduitR.sln`.
 - CLI generates `flows.md`.
 - CLI generates `flows.json`.
@@ -300,6 +320,7 @@ The first release should prove the analysis engine and generated artifacts. IDE 
 - README includes Visualizer installation and usage.
 - Docs include Visualizer examples and limitations.
 - Unit tests cover the analyzer model and report generation.
+- Analyzer tests cover handler discovery for request and stream invocations.
 
 ## Risks And Constraints
 
@@ -316,7 +337,7 @@ The first release should prove the analysis engine and generated artifacts. IDE 
 - Go to all notification handlers.
 - Visual Studio extension.
 - VS Code extension.
-- Analyzer package for compile-time diagnostics.
+- richer analyzer diagnostics for missing handlers and duplicate handlers.
 - PR bot/comment mode that posts flow changes.
 - Integration with source-generated handler maps from the AOT feature.
 
