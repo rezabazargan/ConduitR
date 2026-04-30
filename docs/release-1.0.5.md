@@ -28,6 +28,11 @@ Planned projects:
   - .NET tool package
   - command-line entry point
   - output and CI-friendly options
+- `ConduitR.Visualizer.Analyzers`
+  - Roslyn analyzer package for Visual Studio and IDE hosts
+  - design-time handler discovery for `Send(...)` and `CreateStream(...)`
+  - informational hover diagnostics for resolved handlers
+  - lightbulb code-fix action for Go to Handler without requiring a VSIX extension
 
 Planned public install command:
 
@@ -266,6 +271,47 @@ Expected command:
 conduitr visualize ./MyApp.sln
 ```
 
+### `ConduitR.Visualizer.Analyzers`
+Roslyn analyzer package for Visual Studio and compiler-hosted design-time diagnostics.
+
+Expected install:
+
+```bash
+dotnet add package ConduitR.Visualizer.Analyzers --version 1.0.5
+```
+
+Initial behavior:
+
+- Reports the handler resolved for `mediator.Send(new SomeRequest(...))`.
+- Reports the stream handler resolved for `mediator.CreateStream(new SomeStream(...))`.
+- Emits informational diagnostics in the IDE without changing runtime behavior.
+- Provides a `Go to ConduitR handler 'HandlerName'` lightbulb action when the resolved handler is in the current solution.
+
+## Package Documentation And NuGet Metadata
+
+The release should include package-specific README content so GitHub and NuGet both explain the Visualizer package split clearly:
+
+- `ConduitR.Visualizer.Core`
+  - package README: `src/ConduitR.Visualizer.Core/README.md`
+  - explains the scanner, flow model, generated artifacts, and static-analysis limits
+  - NuGet description and tags identify it as the reusable analysis engine
+- `ConduitR.Visualizer.Cli`
+  - package README: `src/ConduitR.Visualizer.Cli/README.md`
+  - explains global/local tool installation, `conduitr visualize`, output files, and CI use
+  - NuGet description and tags identify it as the command-line .NET tool
+- `ConduitR.Visualizer.Analyzers`
+  - package README: `src/ConduitR.Visualizer.Analyzers/README.md`
+  - explains Visual Studio handler hints, screenshots, diagnostics, and the lightbulb navigation action
+  - NuGet description and tags identify it as the Roslyn analyzer/code-fix package
+
+The repository README should present Visualizer as a first-class feature and link to all three package README files.
+
+The package pipeline should pack all Visualizer packages on prerelease and stable releases:
+
+- `ConduitR.Visualizer.Core`
+- `ConduitR.Visualizer.Cli`
+- `ConduitR.Visualizer.Analyzers`
+
 ## Out Of Scope For v1.0.5
 These are valuable, but should not block the first Visualizer release:
 
@@ -285,6 +331,7 @@ The first release should prove the analysis engine and generated artifacts. IDE 
 
 - `ConduitR.Visualizer.Core` project exists.
 - `ConduitR.Visualizer.Cli` project exists and packs as a .NET tool.
+- `ConduitR.Visualizer.Analyzers` project exists and packs as a Roslyn analyzer package.
 - CLI can scan `ConduitR.sln`.
 - CLI generates `flows.md`.
 - CLI generates `flows.json`.
@@ -300,6 +347,7 @@ The first release should prove the analysis engine and generated artifacts. IDE 
 - README includes Visualizer installation and usage.
 - Docs include Visualizer examples and limitations.
 - Unit tests cover the analyzer model and report generation.
+- Analyzer tests cover handler discovery for request and stream invocations.
 
 ## Risks And Constraints
 
@@ -316,7 +364,7 @@ The first release should prove the analysis engine and generated artifacts. IDE 
 - Go to all notification handlers.
 - Visual Studio extension.
 - VS Code extension.
-- Analyzer package for compile-time diagnostics.
+- richer analyzer diagnostics for missing handlers and duplicate handlers.
 - PR bot/comment mode that posts flow changes.
 - Integration with source-generated handler maps from the AOT feature.
 

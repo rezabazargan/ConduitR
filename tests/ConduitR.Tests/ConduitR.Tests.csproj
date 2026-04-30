@@ -13,8 +13,10 @@
     <ProjectReference Include="..\..\src\ConduitR.AspNetCore\ConduitR.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\ConduitR.Validation.FluentValidation\ConduitR.Validation.FluentValidation.csproj" />
     <ProjectReference Include="..\..\src\ConduitR.Visualizer.Core\ConduitR.Visualizer.Core.csproj" />
+    <ProjectReference Include="..\..\src\ConduitR.Visualizer.Analyzers\ConduitR.Visualizer.Analyzers.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="xunit" Version="2.9.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">

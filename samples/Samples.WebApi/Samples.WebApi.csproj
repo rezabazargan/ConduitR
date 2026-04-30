@@ -12,6 +12,10 @@
     <ProjectReference Include="..\..\src\ConduitR.AspNetCore\ConduitR.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\ConduitR.Processing\ConduitR.Processing.csproj" />
     <ProjectReference Include="..\..\src\ConduitR.Resilience.Polly\ConduitR.Resilience.Polly.csproj" />
+    <ProjectReference Include="..\..\src\ConduitR.Visualizer.Analyzers\ConduitR.Visualizer.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
