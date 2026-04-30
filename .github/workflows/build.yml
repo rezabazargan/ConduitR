@@ -32,7 +32,7 @@ jobs:
             echo "VERSION=$VER" >> $GITHUB_ENV
           elif [[ "$GITHUB_REF" == refs/heads/main ]]; then
             # Prerelease from main
-            BASE="1.0.5"   # <-- bump when you start the next prerelease train
+            BASE="1.0.6"   # <-- bump when you start the next prerelease train
             DATE=$(date -u +%Y%m%dT%H%M)
             SHA=$(git rev-parse --short "$GITHUB_SHA")
             echo "IS_MAIN=true" >> $GITHUB_ENV

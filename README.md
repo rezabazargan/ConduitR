@@ -460,17 +460,17 @@ Visualizer package details:
 - [src/ConduitR.Visualizer.Cli](src/ConduitR.Visualizer.Cli/README.md) documents the Visualizer CLI.
 - [src/ConduitR.Visualizer.Core](src/ConduitR.Visualizer.Core/README.md) documents the Visualizer engine.
 - [src/ConduitR.Visualizer.Analyzers](src/ConduitR.Visualizer.Analyzers/README.md) documents Visual Studio/Roslyn handler hints.
-- [docs/release-1.0.5.md](docs/release-1.0.5.md) contains the next Visualizer release notes.
-- [docs/release-1.0.4.md](docs/release-1.0.4.md) contains the latest stable release notes.
+- [docs/release-1.0.5.md](docs/release-1.0.5.md) contains the latest stable release notes.
+- [docs/release-1.0.4.md](docs/release-1.0.4.md) contains the previous stable release notes.
 
 ## Versioning And Releases
 
 ConduitR follows semantic versioning.
 
-- Latest stable: **1.0.4**
-- Next release train: **1.0.5** with ConduitR Visualizer packages.
-- Tags like `v1.0.4` publish stable NuGet packages.
-- Pushes to `main` publish prerelease packages such as `1.0.4-pre.<date>.<sha>`.
+- Latest stable: **1.0.5**
+- Next release train: **1.0.6**.
+- Tags like `v1.0.5` publish stable NuGet packages.
+- Pushes to `main` publish prerelease packages such as `1.0.6-pre.<date>.<sha>`.
 
 See [GitHub Releases](https://github.com/rezabazargan/ConduitR/releases) and [NuGet](https://www.nuget.org/packages/ConduitR) for published versions.
 
